@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<title>Gerador de Modelos Max — 3D Studio</title>
+<title>3D Studio Max — WebGL 2.0 HD</title>
 <style>
   :root{
     --bg: #050507;
@@ -17,7 +17,7 @@
     --accent: #7c5cff;
     --accent-hover: #9275ff;
     --accent-dim: #3d2f80;
-    --accent-bg: rgba(124, 92, 255, 0.12);
+    --accent-bg: rgba(124, 92, 255, 0.14);
     --text: #f0eff5;
     --text-dim: #8b8b98;
     --text-muted: #5e5e6b;
@@ -25,6 +25,7 @@
     --err: #ff5c72;
     --gold: #f59e0b;
     --cyan: #06b6d4;
+    --pink: #ec4899;
     --mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, Menlo, monospace;
     --sans: 'Space Grotesk', -apple-system, 'Segoe UI', sans-serif;
     --safe-top: env(safe-area-inset-top, 0px);
@@ -60,7 +61,7 @@
     position:relative;
     width:46%;
     height:100%;
-    background: #060609;
+    background: #050508;
     border-right:1px solid var(--panel-edge);
     overflow:hidden;
     transition: width .35s cubic-bezier(.4,0,.2,1), height .35s cubic-bezier(.4,0,.2,1);
@@ -83,6 +84,11 @@
   }
   .dot{ width:7px; height:7px; border-radius:50%; background:var(--text-dim); }
   .dot.live{ background:var(--ok); box-shadow: 0 0 8px var(--ok); }
+  .gl-badge{
+    font-family: var(--mono); font-size: 9px; color: var(--cyan);
+    background: rgba(6,182,212,0.15); border: 1px solid rgba(6,182,212,0.3);
+    padding: 1px 5px; border-radius: 4px; margin-left: 4px;
+  }
   
   .viewport-controls-top{
     position: absolute; top: 12px; right: 12px;
@@ -102,6 +108,7 @@
   }
   .vp-btn:active{ background: var(--accent-bg); color: var(--accent); transform: scale(.95); }
   .vp-btn.active{ background: var(--accent); color: #0a0a0d; font-weight: 600; border-color: var(--accent); }
+  .vp-btn.hp-active{ background: linear-gradient(135deg, var(--accent), var(--pink)); color: #fff; border-color: transparent; }
   .vp-btn svg{ width: 14px; height: 14px; }
 
   .viewport-hint{
@@ -127,13 +134,12 @@
   #app.preview-collapsed #panel{ width:100%!important; flex:1; }
 
   .panel-header{
-    padding:8px 12px; border-bottom:1px solid var(--panel-edge); flex-shrink:0;
+    padding:9px 12px; border-bottom:1px solid var(--panel-edge); flex-shrink:0;
     display:flex; align-items:center; justify-content:space-between; gap:8px;
     background: var(--panel);
   }
   .panel-header-left{ min-width:0; flex:1; }
-  .panel-eyebrow{ font-family:var(--mono); font-size:9.5px; letter-spacing:.12em; color:var(--accent); text-transform:uppercase; margin-bottom:2px; }
-  .panel-title{ font-family:var(--sans); font-weight:700; font-size:13.5px; color:var(--text); letter-spacing:.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .panel-title{ font-family:var(--sans); font-weight:700; font-size:14px; color:var(--text); letter-spacing:.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .panel-sub{ font-family:var(--mono); font-size:10px; color:var(--text-dim); margin-top:2px; line-height:1.45; }
   .panel-sub b{ color:var(--text); }
 
@@ -198,6 +204,12 @@
     border-color: var(--accent-dim);
   }
   .tool-chip.primary:active{ background: var(--accent); color: #0a0a0d; }
+  .tool-chip.highpoly{
+    background: linear-gradient(135deg, rgba(124,92,255,0.18), rgba(236,72,153,0.18));
+    border-color: rgba(236,72,153,0.4);
+    color: #fbcfe8;
+  }
+  .tool-chip.highpoly:active{ background: linear-gradient(135deg, var(--accent), var(--pink)); color: #fff; }
   .tool-chip svg{ width: 13px; height: 13px; flex-shrink: 0; }
   .tool-separator{ width: 1px; height: 16px; background: var(--panel-edge); margin: 0 2px; flex-shrink: 0; }
   
@@ -288,10 +300,23 @@
     border-radius: 4px;
   }
 
+  /* Camada de Aprimoramento High-Poly */
+  .highpoly-box{
+    background: linear-gradient(135deg, rgba(124,92,255,0.1), rgba(236,72,153,0.08));
+    border: 1px solid rgba(124,92,255,0.25);
+    border-radius: 8px;
+    padding: 10px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .highpoly-header{
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .highpoly-title{ font-family: var(--sans); font-size: 12px; font-weight: 700; color: #fbcfe8; display: flex; align-items: center; gap: 5px; }
+
   /* Lista de Peças */
   #pieceList{
     display: flex; flex-direction: column; gap: 5px;
-    max-height: 180px; overflow-y: auto;
+    max-height: 170px; overflow-y: auto;
     scrollbar-width: thin;
   }
   .piece-item{
@@ -340,6 +365,12 @@
   .ctrl-input:focus{ border-color: var(--accent); }
   .ctrl-slider{
     width: 100%; accent-color: var(--accent); cursor: pointer;
+  }
+  .ctrl-select{
+    width: 100%; background: #14141c; border: 1px solid #242432;
+    border-radius: 5px; color: var(--text);
+    font-family: var(--mono); font-size: 11px;
+    padding: 5px 7px; outline: none; cursor: pointer;
   }
 
   /* Paleta de Cores e Material */
@@ -544,7 +575,6 @@
   }
 
   #app.editor-focused .panel-sub, #app.keyboard-open .panel-sub{ display: none; }
-  #app.editor-focused .panel-eyebrow, #app.keyboard-open .panel-eyebrow{ display: none; }
 
   /* ---- Overlay de Geração 3D ---- */
   #genTop{
@@ -607,17 +637,24 @@
 <div id="app">
   <!-- Viewport 3D -->
   <div id="viewport">
-    <div class="viewport-badge"><span class="dot" id="liveDot"></span><span id="liveLabel">vazio</span></div>
+    <div class="viewport-badge">
+      <span class="dot" id="liveDot"></span>
+      <span id="liveLabel">vazio</span>
+      <span class="gl-badge" id="glVersionBadge">WebGL 2.0</span>
+    </div>
     
     <!-- Botões Flutuantes no Viewport 3D -->
     <div class="viewport-controls-top">
+      <button class="vp-btn" id="vpHighPolyBtn" title="Ativar/Desativar Aprimoramento High-Poly">
+        <span>✨ High-Poly</span>
+      </button>
       <button class="vp-btn" id="vpWeatherBtn" title="Ajustar Clima / Dia / Noite">
         <span id="vpWeatherIcon">☀️</span>
         <span id="vpWeatherTime">12:00</span>
       </button>
       <button class="vp-btn" id="vpInspectBtn" title="Abrir Inspetor de Peças">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
         </svg>
         <span>Edição</span>
       </button>
@@ -630,8 +667,7 @@
   <div id="panel">
     <div class="panel-header">
       <div class="panel-header-left">
-        <div class="panel-eyebrow">Gerador de Modelos · Three.js Studio</div>
-        <div class="panel-title" id="panelTitleText">Código do Modelo 3D</div>
+        <div class="panel-title" id="panelTitleText">Modelo 3D</div>
         <div class="panel-sub">Cole ou envie o código. O Three.js monta o objeto em <b>group</b>.</div>
       </div>
       <div id="panelTabs">
@@ -656,6 +692,10 @@
     <div id="editorToolbar">
       <input type="file" id="codeFileInput" accept=".js,.txt,.json,text/*,*/*" style="display:none" />
       
+      <button class="tool-chip highpoly" id="highPolyBtn" title="Aprimorar peças para High-Poly com bordas chanfradas e normais suaves">
+        <span>✨ High-Poly</span>
+      </button>
+
       <button class="tool-chip primary" id="uploadFileBtn" title="Carregar arquivo .js ou .txt sem limite de caracteres">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
@@ -708,6 +748,34 @@
 
     <!-- COMPONENTE DE EDIÇÃO / INSPETOR 3D -->
     <div id="inspector-wrap">
+      <!-- Camada de Aprimoramento High-Poly -->
+      <div class="highpoly-box">
+        <div class="highpoly-header">
+          <span class="highpoly-title">✨ Camada de Aprimoramento High-Poly HD</span>
+          <button class="tool-chip highpoly" id="applyAllHighPolyBtn">Aprimorar Tudo</button>
+        </div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+          <div class="control-group">
+            <span class="ctrl-label">Bordas / Chanfro (Bevel)</span>
+            <select class="ctrl-select" id="bevelSelect">
+              <option value="none">Original (Reta)</option>
+              <option value="soft" selected>Chanfro Suave (Studio HD)</option>
+              <option value="round">Arredondado Orgânico</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <span class="ctrl-label">Micro-Textura PBR</span>
+            <select class="ctrl-select" id="pbrTextureSelect">
+              <option value="none">Padrão Lisa</option>
+              <option value="brushed" selected>Metal Escovado</option>
+              <option value="carbon">Fibra de Carbono</option>
+              <option value="polymer">Polímero Fosco</option>
+              <option value="leather">Couro Fino</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
       <!-- Árvore de Peças -->
       <div class="insp-section">
         <div class="insp-title">
@@ -898,18 +966,18 @@
 
       <!-- Efeitos e Iluminação Avançada -->
       <div class="insp-section">
-        <div class="insp-title"><span>Motor Gráfico Three.js (Máxima Fidelidade)</span></div>
+        <div class="insp-title"><span>Motor Gráfico WebGL 2.0 (Máxima Fidelidade)</span></div>
         <div style="display:flex; flex-direction:column; gap:8px; font-family:var(--mono); font-size:11px; color:var(--text-dim);">
           <label style="display:flex; align-items:center; justify-content:space-between; cursor:pointer;">
             <span>Sombras Suaves em Tempo Real (PCF Soft Shadows)</span>
             <input type="checkbox" id="toggleShadowsCheck" checked>
           </label>
           <label style="display:flex; align-items:center; justify-content:space-between; cursor:pointer;">
-            <span>Reflexos e Domo Estrelado Dinâmico</span>
-            <input type="checkbox" id="toggleStarsCheck" checked>
+            <span>Reflexos HDR de Estúdio (PMREM Environment)</span>
+            <input type="checkbox" id="toggleEnvCheck" checked>
           </label>
           <label style="display:flex; align-items:center; justify-content:space-between; cursor:pointer;">
-            <span>Grade e Chão Reflexivo de Referência</span>
+            <span>Grade e Chão Reflexivo</span>
             <input type="checkbox" id="toggleGridCheck" checked>
           </label>
         </div>
@@ -1009,6 +1077,7 @@ const liveLabel = document.getElementById('liveLabel');
 const fsToggleBtn = document.getElementById('fsToggleBtn');
 const toastEl = document.getElementById('toast');
 const panelTitleText = document.getElementById('panelTitleText');
+const glVersionBadge = document.getElementById('glVersionBadge');
 
 // Toolbar buttons
 const codeFileInput = document.getElementById('codeFileInput');
@@ -1022,6 +1091,8 @@ const fontLabel = document.getElementById('fontLabel');
 const exportJsBtn = document.getElementById('exportJsBtn');
 const clearCodeBtn = document.getElementById('clearCodeBtn');
 const editorToolbar = document.getElementById('editorToolbar');
+const highPolyBtn = document.getElementById('highPolyBtn');
+const vpHighPolyBtn = document.getElementById('vpHighPolyBtn');
 
 // Viewport floating buttons
 const vpWeatherBtn = document.getElementById('vpWeatherBtn');
@@ -1051,6 +1122,11 @@ const inspectorWrap = document.getElementById('inspector-wrap');
 const weatherWrap = document.getElementById('weather-wrap');
 const chatWrap = document.getElementById('chat-wrap');
 const footerEl = document.getElementById('footer');
+
+// High-Poly Controls
+const applyAllHighPolyBtn = document.getElementById('applyAllHighPolyBtn');
+const bevelSelect = document.getElementById('bevelSelect');
+const pbrTextureSelect = document.getElementById('pbrTextureSelect');
 
 // Inspector Elements
 const pieceListEl = document.getElementById('pieceList');
@@ -1101,7 +1177,7 @@ const timePlayToggleBtn = document.getElementById('timePlayToggleBtn');
 const currentWeatherBadge = document.getElementById('currentWeatherBadge');
 const weatherChips = document.querySelectorAll('.weather-chip');
 const toggleShadowsCheck = document.getElementById('toggleShadowsCheck');
-const toggleStarsCheck = document.getElementById('toggleStarsCheck');
+const toggleEnvCheck = document.getElementById('toggleEnvCheck');
 const toggleGridCheck = document.getElementById('toggleGridCheck');
 
 // Toast Feedback Helper
@@ -1398,10 +1474,10 @@ function showTab(tab) {
   statusEl.classList.toggle('hide', tab === 'chat');
 
   if (tab === 'editor') {
-    panelTitleText.textContent = 'Código do Modelo 3D';
+    panelTitleText.textContent = 'Modelo 3D';
     refreshGutter();
   } else if (tab === 'inspector') {
-    panelTitleText.textContent = 'Inspetor & Edição de Peças';
+    panelTitleText.textContent = 'Inspetor & Edição 3D';
     updatePieceList();
   } else if (tab === 'weather') {
     panelTitleText.textContent = 'Motor de Clima & Atmosfera';
@@ -1418,7 +1494,7 @@ tabChatBtn?.addEventListener('click', () => showTab('chat'));
 vpWeatherBtn?.addEventListener('click', () => showTab('weather'));
 vpInspectBtn?.addEventListener('click', () => showTab('inspector'));
 
-// ---------- MOTOR THREE.JS & SISTEMA DE CLIMA REALISTA ----------
+// ---------- MOTOR THREE.JS WEBGL 2.0 HD & SISTEMA DE CLIMA ----------
 let scene, camera, renderer, controls, clock, group;
 let userUpdate = null;
 let genIntervalId = null;
@@ -1428,19 +1504,21 @@ let camLerp = false;
 const camTargetPos = new THREE.Vector3();
 const camTargetLook = new THREE.Vector3();
 
-// Iluminação e Atmosfera
+// Iluminação, Sombras e Reflexos HDR
 let sunLight, hemiLight, ambientLight, lightningLight;
 let sunMesh, moonMesh, starField;
 let rainParticles, snowParticles;
 let groundPlane, gridHelper;
 let selectionHelper = null;
 let selectedObject = null;
+let envMapTexture = null;
 
 // Parâmetros de Clima
 let currentTimeOfDay = 12.0; // 0 a 24
 let isTimePlaying = false;
-let currentWeatherMode = 'sunny'; // sunny, sunset, night, cloudy, rain, storm, snow, fog
+let currentWeatherMode = 'sunny';
 let stormTimer = 0;
+let isHighPolyActive = false;
 
 function buildEnvironment() {
   scene = new THREE.Scene();
@@ -1448,12 +1526,39 @@ function buildEnvironment() {
   camera = new THREE.PerspectiveCamera(48, 1, 0.08, 200);
   camera.position.set(3.6, 2.6, 4.0);
 
-  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+  // Inicialização WebGL 2.0 com alta precisão
+  const canvas = document.createElement('canvas');
+  let gl = null;
+  try {
+    gl = canvas.getContext('webgl2', {
+      alpha: true,
+      antialias: true,
+      powerPreference: 'high-performance',
+      preserveDrawingBuffer: false,
+      stencil: true,
+      depth: true
+    });
+    if (gl) glVersionBadge.textContent = 'WebGL 2.0 HD';
+  } catch (e) {}
+
+  if (!gl) {
+    gl = canvas.getContext('webgl', { antialias: true, alpha: true }) || canvas.getContext('experimental-webgl');
+    glVersionBadge.textContent = 'WebGL 1.0';
+  }
+
+  renderer = new THREE.WebGLRenderer({
+    canvas,
+    context: gl || undefined,
+    antialias: true,
+    alpha: true,
+    powerPreference: 'high-performance'
+  });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.22;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.15;
   viewportEl.appendChild(renderer.domElement);
 
   controls = new OrbitControls(camera, renderer.domElement);
@@ -1469,10 +1574,10 @@ function buildEnvironment() {
   ambientLight = new THREE.AmbientLight(0xddeeff, 0.45);
   scene.add(ambientLight);
 
-  hemiLight = new THREE.HemisphereLight(0x88b5ff, 0x1f1f28, 0.6);
+  hemiLight = new THREE.HemisphereLight(0x88b5ff, 0x1f1f28, 0.65);
   scene.add(hemiLight);
 
-  sunLight = new THREE.DirectionalLight(0xfffaed, 1.6);
+  sunLight = new THREE.DirectionalLight(0xfffaed, 1.8);
   sunLight.position.set(5, 8, 4);
   sunLight.castShadow = true;
   sunLight.shadow.mapSize.width = 2048;
@@ -1518,6 +1623,9 @@ function buildEnvironment() {
   moonMesh = new THREE.Mesh(moonGeo, moonMat);
   scene.add(moonMesh);
 
+  // Gerador de Ambiente HDR de Estúdio (Reflexos PBR)
+  generateStudioEnvMap();
+
   // Campo Estelar (Noite)
   buildStarField();
 
@@ -1528,12 +1636,15 @@ function buildEnvironment() {
   group = new THREE.Group();
   scene.add(group);
 
-  // Intercepta group.add para aplicar sombras e animação
+  // Intercepta group.add para aplicar sombras e aprimoramento
   const originalAdd = THREE.Group.prototype.add;
   group.add = function (...objs) {
     originalAdd.apply(this, objs);
     objs.forEach(o => {
       enableShadowsRecursive(o);
+      if (isHighPolyActive) {
+        enhanceMeshHighPoly(o);
+      }
       revealPiece(o);
     });
     updatePieceList();
@@ -1554,11 +1665,42 @@ function buildEnvironment() {
   setupRaycasting();
 }
 
+// Mapa de Ambiente HDR Procedural para Reflexos de Alta Fidelidade
+function generateStudioEnvMap() {
+  const pmremGenerator = new THREE.PMREMGenerator(renderer);
+  pmremGenerator.compileEquirectangularShader();
+
+  const envScene = new THREE.Scene();
+  envScene.background = new THREE.Color(0x141622);
+
+  const l1 = new THREE.DirectionalLight(0xfffaee, 2.5);
+  l1.position.set(2, 4, 2);
+  envScene.add(l1);
+
+  const l2 = new THREE.DirectionalLight(0x7c5cff, 1.8);
+  l2.position.set(-3, 2, -2);
+  envScene.add(l2);
+
+  const l3 = new THREE.AmbientLight(0x334466, 1.2);
+  envScene.add(l3);
+
+  const envTex = pmremGenerator.fromScene(envScene).texture;
+  scene.environment = envTex;
+  envMapTexture = envTex;
+}
+
 function enableShadowsRecursive(obj) {
   obj.traverse((child) => {
     if (child.isMesh) {
       child.castShadow = true;
       child.receiveShadow = true;
+      if (child.material) {
+        if (Array.isArray(child.material)) {
+          child.material.forEach(m => { m.envMapIntensity = 1.2; });
+        } else {
+          child.material.envMapIntensity = 1.2;
+        }
+      }
     }
   });
 }
@@ -1628,6 +1770,190 @@ function buildWeatherParticles() {
   scene.add(snowParticles);
 }
 
+// ---------- CAMADA DE APRIMORAMENTO HIGH-POLY (GEOMETRIAS & PBR) ----------
+// Gerador Procedural de Mapas de Normais PBR
+const proceduralTextures = {};
+
+function getProceduralNormalMap(type) {
+  if (type === 'none') return null;
+  if (proceduralTextures[type]) return proceduralTextures[type];
+
+  const size = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const imgData = ctx.createImageData(size, size);
+  const data = imgData.data;
+
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const idx = (y * size + x) * 4;
+      let nx = 128, ny = 128, nz = 255;
+
+      if (type === 'brushed') {
+        // Metal escovado (linhas finas horizontais)
+        const grain = (Math.sin(y * 4.0) + Math.random() * 0.4) * 25;
+        nx = 128 + grain;
+        ny = 128;
+      } else if (type === 'carbon') {
+        // Fibra de carbono (trama xadrez cruzada)
+        const cx = Math.floor(x / 8) % 2;
+        const cy = Math.floor(y / 8) % 2;
+        const pattern = (cx ^ cy) ? 35 : -35;
+        nx = 128 + pattern;
+        ny = 128 + pattern * 0.5;
+      } else if (type === 'polymer') {
+        // Polímero fosco (micro-grânulos)
+        const noise = (Math.random() - 0.5) * 30;
+        nx = 128 + noise;
+        ny = 128 + noise;
+      } else if (type === 'leather') {
+        // Couro fino
+        const v = Math.sin(x * 0.2) * Math.cos(y * 0.2) * 20;
+        nx = 128 + v;
+        ny = 128 + v;
+      }
+
+      data[idx] = Math.max(0, Math.min(255, nx));
+      data[idx + 1] = Math.max(0, Math.min(255, ny));
+      data[idx + 2] = Math.max(0, Math.min(255, nz));
+      data[idx + 3] = 255;
+    }
+  }
+
+  ctx.putImageData(imgData, 0, 0);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(3, 3);
+  proceduralTextures[type] = tex;
+  return tex;
+}
+
+// Algoritmo de Criação de Rounded Box Geometry (Chanfro nas Bordas)
+function createRoundedBoxGeometry(w, h, d, r, segments) {
+  // Cria uma caixa com segmentos subdivididos e quinas arredondadas
+  const geo = new THREE.BoxGeometry(w, h, d, segments, segments, segments);
+  const pos = geo.attributes.position;
+  const hw = w / 2, hh = h / 2, hd = d / 2;
+  const radius = Math.min(r, Math.min(hw, Math.min(hh, hd)) * 0.3);
+
+  for (let i = 0; i < pos.count; i++) {
+    let x = pos.getX(i);
+    let y = pos.getY(i);
+    let z = pos.getZ(i);
+
+    const sx = Math.sign(x);
+    const sy = Math.sign(y);
+    const sz = Math.sign(z);
+
+    const cx = sx * (hw - radius);
+    const cy = sy * (hh - radius);
+    const cz = sz * (hd - radius);
+
+    if (Math.abs(x) > (hw - radius) && Math.abs(y) > (hh - radius) && Math.abs(z) > (hd - radius)) {
+      const v = new THREE.Vector3(x - cx, y - cy, z - cz).normalize().multiplyScalar(radius);
+      pos.setXYZ(i, cx + v.x, cy + v.y, cz + v.z);
+    }
+  }
+
+  geo.computeVertexNormals();
+  return geo;
+}
+
+// Aprimora um Mesh individual para High-Poly
+function enhanceMeshHighPoly(mesh) {
+  if (!mesh || !mesh.isMesh || !mesh.geometry) return;
+
+  const geo = mesh.geometry;
+  const type = geo.type;
+  const bevelMode = bevelSelect.value;
+  const pbrTexType = pbrTextureSelect.value;
+
+  // 1. Aprimoramento Geométrico (Subdivisão & Bevel)
+  if (type === 'BoxGeometry' && bevelMode !== 'none') {
+    const p = geo.parameters || {};
+    const w = p.width || 1;
+    const h = p.height || 1;
+    const d = p.depth || 1;
+    const radius = bevelMode === 'round' ? Math.min(w, h, d) * 0.08 : Math.min(w, h, d) * 0.04;
+    const segments = 8;
+    mesh.geometry = createRoundedBoxGeometry(w, h, d, radius, segments);
+  } else if (type === 'CylinderGeometry') {
+    const p = geo.parameters || {};
+    const rt = p.radiusTop != null ? p.radiusTop : 0.5;
+    const rb = p.radiusBottom != null ? p.radiusBottom : 0.5;
+    const height = p.height || 1;
+    mesh.geometry = new THREE.CylinderGeometry(rt, rb, height, 64, 4, false);
+    mesh.geometry.computeVertexNormals();
+  } else if (type === 'SphereGeometry') {
+    const p = geo.parameters || {};
+    const r = p.radius || 1;
+    mesh.geometry = new THREE.SphereGeometry(r, 64, 64);
+    mesh.geometry.computeVertexNormals();
+  } else if (type === 'ConeGeometry') {
+    const p = geo.parameters || {};
+    const r = p.radius || 1;
+    const h = p.height || 1;
+    mesh.geometry = new THREE.ConeGeometry(r, h, 64, 4);
+    mesh.geometry.computeVertexNormals();
+  } else if (type === 'TorusGeometry') {
+    const p = geo.parameters || {};
+    const r = p.radius || 1;
+    const t = p.tube || 0.4;
+    mesh.geometry = new THREE.TorusGeometry(r, t, 32, 96);
+    mesh.geometry.computeVertexNormals();
+  } else {
+    mesh.geometry.computeVertexNormals();
+  }
+
+  // 2. Aprimoramento de Material PBR
+  if (mesh.material) {
+    const applyPBR = (m) => {
+      m.flatShading = false;
+      m.roughness = m.roughness != null ? Math.max(0.1, m.roughness * 0.85) : 0.35;
+      m.metalness = m.metalness != null ? m.metalness : 0.3;
+      m.envMapIntensity = 1.35;
+
+      const normMap = getProceduralNormalMap(pbrTexType);
+      if (normMap) {
+        m.normalMap = normMap;
+        m.normalScale = new THREE.Vector2(0.35, 0.35);
+      } else {
+        m.normalMap = null;
+      }
+      m.needsUpdate = true;
+    };
+
+    if (Array.isArray(mesh.material)) mesh.material.forEach(applyPBR);
+    else applyPBR(mesh.material);
+  }
+}
+
+// Aprimora Todo o Modelo para High-Poly
+function enhanceAllModelHighPoly() {
+  let count = 0;
+  group.traverse((obj) => {
+    if (obj.isMesh) {
+      enhanceMeshHighPoly(obj);
+      count++;
+    }
+  });
+  isHighPolyActive = true;
+  highPolyBtn.classList.add('primary');
+  vpHighPolyBtn.classList.add('hp-active');
+  if (selectionHelper && selectionHelper.visible && selectedObject) selectionHelper.update();
+  showToast(`✨ ${count} peças aprimoradas para High-Poly HD!`, 'ok');
+}
+
+highPolyBtn?.addEventListener('click', enhanceAllModelHighPoly);
+vpHighPolyBtn?.addEventListener('click', enhanceAllModelHighPoly);
+applyAllHighPolyBtn?.addEventListener('click', enhanceAllModelHighPoly);
+
+bevelSelect?.addEventListener('change', enhanceAllModelHighPoly);
+pbrTextureSelect?.addEventListener('change', enhanceAllModelHighPoly);
+
 // Atualização Dinâmica do Sol, Lua, Sombras e Cores
 function updateTimeOfDay(hour) {
   currentTimeOfDay = hour;
@@ -1652,49 +1978,45 @@ function updateTimeOfDay(hour) {
 
   // Cores do Céu e Intensidade de Luz
   const isNight = sunY < 0;
-  const sunsetFactor = Math.max(0, 1 - Math.abs(sunY) * 2.5); // perto do horizonte
+  const sunsetFactor = Math.max(0, 1 - Math.abs(sunY) * 2.5);
 
   if (currentWeatherMode === 'rain' || currentWeatherMode === 'storm') {
     scene.background = new THREE.Color(0x0c0e14);
-    sunLight.intensity = 0.4;
-    hemiLight.intensity = 0.3;
+    sunLight.intensity = 0.45;
+    hemiLight.intensity = 0.35;
     ambientLight.color.setHex(0x334455);
   } else if (currentWeatherMode === 'fog') {
     scene.background = new THREE.Color(0x161822);
-    sunLight.intensity = 0.6;
-    hemiLight.intensity = 0.4;
+    sunLight.intensity = 0.65;
+    hemiLight.intensity = 0.45;
   } else if (isNight) {
-    // Noite
     scene.background = new THREE.Color(0x04050a);
-    sunLight.intensity = 0.15;
+    sunLight.intensity = 0.18;
     sunLight.color.setHex(0x5577aa);
     hemiLight.color.setHex(0x223355);
     hemiLight.groundColor.setHex(0x0a0c14);
-    hemiLight.intensity = 0.35;
+    hemiLight.intensity = 0.38;
     ambientLight.color.setHex(0x223344);
     if (starField) starField.material.opacity = 0.9;
     vpWeatherIcon.textContent = '🌙';
   } else {
-    // Dia / Pôr do Sol
     if (sunsetFactor > 0.1) {
-      // Pôr do Sol
       const sunsetCol = new THREE.Color(0x1a0a1c).lerp(new THREE.Color(0x4a1820), sunsetFactor);
       scene.background = sunsetCol;
       sunLight.color.setHex(0xff7733);
-      sunLight.intensity = 1.4;
+      sunLight.intensity = 1.5;
       hemiLight.color.setHex(0xff8855);
       hemiLight.groundColor.setHex(0x1c1420);
-      hemiLight.intensity = 0.65;
+      hemiLight.intensity = 0.7;
       if (starField) starField.material.opacity = 0.1;
       vpWeatherIcon.textContent = '🌅';
     } else {
-      // Dia Claro
       scene.background = new THREE.Color(0x07080d);
       sunLight.color.setHex(0xfffaee);
-      sunLight.intensity = 1.7;
+      sunLight.intensity = 1.8;
       hemiLight.color.setHex(0x99c2ff);
       hemiLight.groundColor.setHex(0x1a1a24);
-      hemiLight.intensity = 0.7;
+      hemiLight.intensity = 0.75;
       ambientLight.color.setHex(0xddeeff);
       if (starField) starField.material.opacity = 0.0;
       vpWeatherIcon.textContent = '☀️';
@@ -1722,7 +2044,6 @@ function applyWeather(mode) {
   rainParticles.visible = (mode === 'rain' || mode === 'storm');
   snowParticles.visible = (mode === 'snow');
 
-  // Névoa
   if (mode === 'fog') {
     scene.fog = new THREE.FogExp2(0x161822, 0.08);
   } else if (mode === 'storm' || mode === 'rain') {
@@ -1731,7 +2052,6 @@ function applyWeather(mode) {
     scene.fog = new THREE.FogExp2(0x07080d, 0.008);
   }
 
-  // Piso Molhado / Refletivo na Chuva
   if (mode === 'rain' || mode === 'storm') {
     groundPlane.material.roughness = 0.2;
     groundPlane.material.metalness = 0.7;
@@ -1783,8 +2103,9 @@ toggleShadowsCheck.addEventListener('change', (e) => {
   renderer.shadowMap.enabled = e.target.checked;
   showToast(e.target.checked ? 'Sombras ativadas' : 'Sombras desativadas');
 });
-toggleStarsCheck.addEventListener('change', (e) => {
-  if (starField) starField.visible = e.target.checked;
+toggleEnvCheck.addEventListener('change', (e) => {
+  scene.environment = e.target.checked ? envMapTexture : null;
+  showToast(e.target.checked ? 'Reflexos HDR ativados' : 'Reflexos desativados');
 });
 toggleGridCheck.addEventListener('change', (e) => {
   gridHelper.visible = e.target.checked;
@@ -1806,7 +2127,6 @@ function setupRaycasting() {
   });
 
   dom.addEventListener('pointerup', (e) => {
-    // Verifica se foi apenas um clique/toque (sem arrastar órbita)
     const dist = Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y);
     if (performance.now() - downTime < 300 && dist < 6) {
       const rect = dom.getBoundingClientRect();
@@ -2116,6 +2436,9 @@ function clearGroup() {
   }
   userUpdate = null;
   pieceCount = 0;
+  isHighPolyActive = false;
+  highPolyBtn.classList.remove('primary');
+  vpHighPolyBtn.classList.remove('hp-active');
   selectPiece(null);
   updatePieceList();
 }
@@ -2191,7 +2514,6 @@ function animate() {
     stormTimer -= delta;
     if (stormTimer <= 0) {
       stormTimer = 2.5 + Math.random() * 5.0;
-      // Flash de Relâmpago
       lightningLight.intensity = 8.0;
       setTimeout(() => { lightningLight.intensity = 0; }, 80);
       setTimeout(() => { lightningLight.intensity = 5.0; }, 140);
