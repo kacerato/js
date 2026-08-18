@@ -1,1122 +1,3895 @@
-/**
- * ULTRA HIGH-POLY REFERENCE SUPERCAR
- * Procedural Three.js model based on the supplied reference image.
- *
- * - Only the car is created (no floor, studio, camera or lights).
- * - Default ULTRA preset targets ~2M+ vertices at runtime.
- * - Front of the car points toward -Z.
- * - Requires THREE available globally, or pass { THREE } in options.
- *
- * Usage:
- *   const car = await createUltraHighPolyCar({ THREE });
- *   scene.add(car);
- *
- * If your environment already provides a `group` global (as in many
- * AI-generated Three.js snippets), this file auto-adds the car to it.
- */
+// ============================================================================
+// SUPERCAR PROCEDURAL ULTRA HIGH POLY - THREE.JS
+// NEXT LEVEL / ESTRUTURA DIRETA NO ESTILO DO EXEMPLO ENVIADO
+//
+// Pressupõe que já existam:
+// - THREE
+// - group
+// - sleep(ms)
+//
+// Não cria:
+// - câmera
+// - luzes de estúdio
+// - chão
+// - cenário
+//
+// Cria somente o carro.
+//
+// Convenção:
+// +Y = cima
+// -Z = frente do carro
+// +Z = traseira
+// +X = lado direito
+//
+// Observação:
+// O casco principal usa uma malha procedural extremamente densa.
+// Com BODY_U=1600 e BODY_V=1200, só a carroceria principal passa de
+// 1,9 milhão de vértices, antes de rodas, cabine e detalhes.
+// ============================================================================
 
-(function () {
-  "use strict";
+group.name = "Supercar_UltraHighPoly_NextLevel";
 
-  const PI = Math.PI;
-  const TAU = Math.PI * 2;
+const PI = Math.PI;
+const TAU = Math.PI * 2;
 
-  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
-  function mix(a, b, t) { return a + (b - a) * t; }
-  function smoothstep(a, b, x) {
-    const t = clamp((x - a) / (b - a), 0, 1);
-    return t * t * (3 - 2 * t);
-  }
-  function gauss(x, c, s) {
-    const d = (x - c) / s;
-    return Math.exp(-0.5 * d * d);
-  }
-  function signedPow(v, p) {
-    return Math.sign(v) * Math.pow(Math.abs(v), p);
-  }
-  function nextFrame() {
-    return new Promise(resolve => {
-      if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => resolve());
-      else setTimeout(resolve, 0);
-    });
-  }
+const BODY_U = 1600;
+const BODY_V = 1200;
 
-  const QUALITY = {
-    MOBILE: {
-      bodyU: 420, bodyV: 300,
-      cabinU: 240, cabinV: 180,
-      torusRadial: 64, torusTubular: 160,
-      sphereW: 72, sphereH: 48
-    },
-    HIGH: {
-      bodyU: 900, bodyV: 640,
-      cabinU: 360, cabinV: 280,
-      torusRadial: 96, torusTubular: 224,
-      sphereW: 112, sphereH: 72
-    },
-    ULTRA: {
-      // Main body alone is ~1.92 million vertices.
-      bodyU: 1600, bodyV: 1200,
-      cabinU: 600, cabinV: 420,
-      torusRadial: 128, torusTubular: 320,
-      sphereW: 160, sphereH: 112
-    },
-    EXTREME: {
-      // Extremely memory hungry. Intended for desktop/WebGL2.
-      bodyU: 2200, bodyV: 1600,
-      cabinU: 800, cabinV: 560,
-      torusRadial: 160, torusTubular: 420,
-      sphereW: 192, sphereH: 144
-    }
-  };
+const CABIN_U = 520;
+const CABIN_V = 300;
 
-  function profileAt(u) {
-    // Generalized supercar shell: low nose, pronounced fenders,
-    // compact waist, wider rear haunches.
-    const arch = Math.pow(Math.max(0, Math.sin(PI * u)), 0.48);
-    const noseTaper = 0.54 + 0.46 * smoothstep(0.0, 0.10, u);
-    const tailTaper = 0.84 + 0.16 * (1 - smoothstep(0.90, 1.0, u));
+const WHEEL_TORUS_RADIAL = 128;
+const WHEEL_TORUS_TUBULAR = 320;
 
-    let halfW = (0.54 + 1.38 * arch) * noseTaper * tailTaper;
-    halfW += 0.15 * gauss(u, 0.235, 0.065); // front fender shoulder
-    halfW += 0.25 * gauss(u, 0.775, 0.075); // rear haunch
-    halfW -= 0.06 * gauss(u, 0.50, 0.10);   // door waist pinch
+const FRONT_Z = -4.35;
+const REAR_Z = 4.12;
 
-    let halfH = 0.25 + 0.34 * Math.pow(Math.max(0, Math.sin(PI * u)), 0.70);
-    halfH += 0.08 * gauss(u, 0.20, 0.09);
-    halfH += 0.11 * gauss(u, 0.78, 0.10);
-    halfH *= 0.82 + 0.18 * smoothstep(0.0, 0.11, u);
 
-    let centerY = 0.48;
-    centerY += 0.08 * smoothstep(0.20, 0.80, u);
-    centerY += 0.06 * gauss(u, 0.72, 0.16);
-    centerY -= 0.055 * gauss(u, 0.03, 0.05);
+// ============================================================================
+// MATERIAIS
+// ============================================================================
 
-    return { halfW, halfH, centerY };
-  }
+const bodyMat = new THREE.MeshPhysicalMaterial({
+  color: 0xe21318,
+  metalness: 0.42,
+  roughness: 0.18,
+  clearcoat: 1.0,
+  clearcoatRoughness: 0.045,
+  reflectivity: 1.0
+});
 
-  function buildBodyShellGeometry(THREE, uSeg, vSeg) {
-    const rows = uSeg + 1;
-    const cols = vSeg + 1;
-    const count = rows * cols;
+const bodyDarkMat = new THREE.MeshPhysicalMaterial({
+  color: 0xa80e12,
+  metalness: 0.38,
+  roughness: 0.22,
+  clearcoat: 1.0,
+  clearcoatRoughness: 0.06
+});
 
-    const pos = new Float32Array(count * 3);
-    const nor = new Float32Array(count * 3);
-    const uv = new Float32Array(count * 2);
+const carbonMat = new THREE.MeshPhysicalMaterial({
+  color: 0x070809,
+  metalness: 0.62,
+  roughness: 0.24,
+  clearcoat: 0.62,
+  clearcoatRoughness: 0.12
+});
 
-    const zMin = -4.36;
-    const zMax = 4.10;
-    const length = zMax - zMin;
+const carbonDarkMat = new THREE.MeshStandardMaterial({
+  color: 0x030405,
+  metalness: 0.38,
+  roughness: 0.52
+});
 
-    // Precompute longitudinal profile and derivatives once.
-    const W = new Float32Array(rows);
-    const H = new Float32Array(rows);
-    const C = new Float32Array(rows);
+const glassMat = new THREE.MeshPhysicalMaterial({
+  color: 0x10171d,
+  metalness: 0.04,
+  roughness: 0.08,
+  transmission: 0.35,
+  transparent: true,
+  opacity: 0.78,
+  ior: 1.50,
+  thickness: 0.055,
+  clearcoat: 1.0,
+  clearcoatRoughness: 0.03,
+  side: THREE.DoubleSide
+});
 
-    for (let i = 0; i < rows; i++) {
-      const u = i / uSeg;
-      const p = profileAt(u);
-      W[i] = p.halfW;
-      H[i] = p.halfH;
-      C[i] = p.centerY;
-    }
+const glassDarkMat = new THREE.MeshPhysicalMaterial({
+  color: 0x070b0f,
+  metalness: 0.10,
+  roughness: 0.09,
+  transmission: 0.16,
+  transparent: true,
+  opacity: 0.80,
+  clearcoat: 1.0,
+  clearcoatRoughness: 0.03,
+  side: THREE.DoubleSide
+});
 
-    const dW = new Float32Array(rows);
-    const dH = new Float32Array(rows);
-    const dC = new Float32Array(rows);
+const headlightLensMat = new THREE.MeshPhysicalMaterial({
+  color: 0xd9ecf8,
+  metalness: 0.04,
+  roughness: 0.04,
+  transmission: 0.42,
+  transparent: true,
+  opacity: 0.78,
+  clearcoat: 1.0,
+  clearcoatRoughness: 0.015
+});
 
-    for (let i = 0; i < rows; i++) {
-      const i0 = Math.max(0, i - 1);
-      const i1 = Math.min(uSeg, i + 1);
-      const dz = ((i1 - i0) / uSeg) * length || 1;
-      dW[i] = (W[i1] - W[i0]) / dz;
-      dH[i] = (H[i1] - H[i0]) / dz;
-      dC[i] = (C[i1] - C[i0]) / dz;
-    }
+const headlightInnerMat = new THREE.MeshPhysicalMaterial({
+  color: 0x050709,
+  metalness: 0.70,
+  roughness: 0.13,
+  clearcoat: 0.72,
+  clearcoatRoughness: 0.08
+});
 
-    let p3 = 0;
-    let p2 = 0;
+const drlMat = new THREE.MeshStandardMaterial({
+  color: 0xffffff,
+  emissive: 0xffffff,
+  emissiveIntensity: 4.5,
+  roughness: 0.12
+});
 
-    for (let i = 0; i < rows; i++) {
-      const u = i / uSeg;
-      const z = mix(zMin, zMax, u);
-      const w = W[i], h = H[i], cy = C[i];
+const projectorMat = new THREE.MeshPhysicalMaterial({
+  color: 0xbddcff,
+  metalness: 0.44,
+  roughness: 0.04,
+  transmission: 0.20,
+  clearcoat: 1.0
+});
 
-      // Sculpting fields along the body.
-      const hoodCrown = 0.075 * gauss(u, 0.235, 0.12);
-      const rearDeck = 0.055 * gauss(u, 0.79, 0.12);
-      const beltTension = 0.035 * gauss(u, 0.53, 0.22);
-      const lowerSideCut = 0.10 * gauss(u, 0.53, 0.22);
+const tailLightMat = new THREE.MeshStandardMaterial({
+  color: 0xff182d,
+  emissive: 0xff001c,
+  emissiveIntensity: 3.8,
+  roughness: 0.13
+});
 
-      for (let j = 0; j < cols; j++) {
-        const v = j / vSeg;
-        const a = v * TAU;
-        const ca = Math.cos(a);
-        const sa = Math.sin(a);
+const grilleMat = new THREE.MeshStandardMaterial({
+  color: 0x040506,
+  metalness: 0.30,
+  roughness: 0.52
+});
 
-        // Superellipse cross-section, sharper shoulder and flatter sill.
-        const sx = signedPow(ca, 0.73);
-        const sy = signedPow(sa, 0.67);
+const grilleGlossMat = new THREE.MeshStandardMaterial({
+  color: 0x111417,
+  metalness: 0.72,
+  roughness: 0.23
+});
 
-        let x = w * sx;
-        let y = cy + h * sy;
+const tireMat = new THREE.MeshStandardMaterial({
+  color: 0x101010,
+  roughness: 0.84,
+  metalness: 0.01
+});
 
-        const top = Math.max(0, sa);
-        const side = Math.pow(Math.abs(ca), 5.0);
-        const bottom = Math.max(0, -sa);
+const treadMat = new THREE.MeshStandardMaterial({
+  color: 0x080808,
+  roughness: 0.93,
+  metalness: 0.0
+});
 
-        y += (hoodCrown + rearDeck) * Math.pow(top, 5.0);
-        y += beltTension * side * Math.pow(top, 0.7);
-        y -= lowerSideCut * side * Math.pow(bottom, 1.2);
+const rimMat = new THREE.MeshPhysicalMaterial({
+  color: 0x2a2d31,
+  metalness: 0.95,
+  roughness: 0.13,
+  clearcoat: 0.26
+});
 
-        // Slight Coke-bottle contour and rear muscular shoulder.
-        x *= 1.0 - 0.026 * gauss(u, 0.49, 0.12) * Math.pow(top, 1.4);
-        x *= 1.0 + 0.045 * gauss(u, 0.77, 0.06) * side;
+const rimEdgeMat = new THREE.MeshPhysicalMaterial({
+  color: 0x4b5056,
+  metalness: 0.98,
+  roughness: 0.10,
+  clearcoat: 0.35
+});
 
-        pos[p3] = x;
-        pos[p3 + 1] = y;
-        pos[p3 + 2] = z;
+const rotorMat = new THREE.MeshStandardMaterial({
+  color: 0x7c8186,
+  metalness: 0.95,
+  roughness: 0.34
+});
 
-        // Fast analytic-ish normal. Avoids computeVertexNormals over millions of verts.
-        let nx = sx / Math.max(0.001, w);
-        let ny = sy / Math.max(0.001, h);
-        let nz = -(dW[i] * Math.abs(nx) * 0.68 +
-                   dH[i] * Math.abs(ny) * 0.54 +
-                   dC[i] * ny * 0.72);
+const rotorDarkMat = new THREE.MeshStandardMaterial({
+  color: 0x25292e,
+  metalness: 0.88,
+  roughness: 0.46
+});
 
-        const inv = 1 / Math.max(1e-8, Math.hypot(nx, ny, nz));
-        nor[p3] = nx * inv;
-        nor[p3 + 1] = ny * inv;
-        nor[p3 + 2] = nz * inv;
+const caliperMat = new THREE.MeshPhysicalMaterial({
+  color: 0xffcf00,
+  metalness: 0.42,
+  roughness: 0.17,
+  clearcoat: 1.0
+});
 
-        uv[p2] = u;
-        uv[p2 + 1] = v;
+const badgeMat = new THREE.MeshPhysicalMaterial({
+  color: 0xffd51c,
+  metalness: 0.36,
+  roughness: 0.16,
+  clearcoat: 1.0
+});
 
-        p3 += 3;
-        p2 += 2;
-      }
-    }
+const exhaustMat = new THREE.MeshStandardMaterial({
+  color: 0x555a60,
+  metalness: 0.98,
+  roughness: 0.20,
+  side: THREE.DoubleSide
+});
 
-    const triCount = uSeg * vSeg * 2;
-    const idx = new Uint32Array(triCount * 3);
-    let k = 0;
+const seamMat = new THREE.MeshStandardMaterial({
+  color: 0x260506,
+  metalness: 0.18,
+  roughness: 0.50
+});
 
-    for (let i = 0; i < uSeg; i++) {
-      const row0 = i * cols;
-      const row1 = (i + 1) * cols;
-      for (let j = 0; j < vSeg; j++) {
-        const a = row0 + j;
-        const b = row1 + j;
-        const c = row1 + j + 1;
-        const d = row0 + j + 1;
-        idx[k++] = a; idx[k++] = b; idx[k++] = d;
-        idx[k++] = b; idx[k++] = c; idx[k++] = d;
-      }
-    }
+const interiorBlackMat = new THREE.MeshPhysicalMaterial({
+  color: 0x08090a,
+  metalness: 0.10,
+  roughness: 0.40,
+  clearcoat: 0.24
+});
 
-    const g = new THREE.BufferGeometry();
-    g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-    g.setAttribute("normal", new THREE.BufferAttribute(nor, 3));
-    g.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
-    g.setIndex(new THREE.BufferAttribute(idx, 1));
-    g.computeBoundingBox();
-    g.computeBoundingSphere();
-    return g;
-  }
+const leatherMat = new THREE.MeshStandardMaterial({
+  color: 0x191a1c,
+  metalness: 0.0,
+  roughness: 0.48
+});
 
-  function buildCabinGeometry(THREE, uSeg, vSeg) {
-    const rows = uSeg + 1;
-    const cols = vSeg + 1;
-    const count = rows * cols;
-    const pos = new Float32Array(count * 3);
-    const nor = new Float32Array(count * 3);
-    const uv = new Float32Array(count * 2);
+const leatherRedMat = new THREE.MeshStandardMaterial({
+  color: 0x741013,
+  metalness: 0.0,
+  roughness: 0.48
+});
 
-    const z0 = -1.36;
-    const z1 = 2.26;
-    let p3 = 0;
-    let p2 = 0;
+const screenMat = new THREE.MeshStandardMaterial({
+  color: 0x101923,
+  emissive: 0x0f2a45,
+  emissiveIntensity: 0.50,
+  roughness: 0.22
+});
 
-    for (let i = 0; i < rows; i++) {
-      const u = i / uSeg;
-      const z = mix(z0, z1, u);
+const mirrorMat = new THREE.MeshPhysicalMaterial({
+  color: 0xb5ccd5,
+  metalness: 0.86,
+  roughness: 0.035
+});
 
-      const endFade = Math.pow(Math.max(0, Math.sin(PI * u)), 0.34);
-      const halfW = 0.88 + 0.58 * endFade;
-      const roofH = 0.28 + 0.44 * endFade;
-      const baseY = 0.90 + 0.06 * gauss(u, 0.63, 0.25);
 
-      for (let j = 0; j < cols; j++) {
-        const v = j / vSeg;
-        const q = mix(-1, 1, v);
-        const absQ = Math.abs(q);
+// ============================================================================
+// FUNÇÕES AUXILIARES
+// ============================================================================
 
-        const sideFall = Math.pow(Math.max(0, 1 - Math.pow(absQ, 1.82)), 0.55);
-        let x = halfW * q;
-        let y = baseY + roofH * sideFall;
+function clamp(v, a, b) {
+  return Math.max(a, Math.min(b, v));
+}
 
-        // Windshield front is lower and pulled rearward at the roofline.
-        y -= 0.12 * gauss(u, 0.06, 0.08) * (0.35 + 0.65 * sideFall);
-        y -= 0.05 * gauss(u, 0.94, 0.08) * (0.35 + 0.65 * sideFall);
+function mix(a, b, t) {
+  return a + (b - a) * t;
+}
 
-        pos[p3] = x;
-        pos[p3 + 1] = y;
-        pos[p3 + 2] = z;
+function smoothstep(a, b, x) {
+  const t = clamp((x - a) / (b - a), 0, 1);
+  return t * t * (3 - 2 * t);
+}
 
-        let nx = q * 0.86;
-        let ny = 0.48 + 0.92 * sideFall;
-        let nz = -0.24 * (gauss(u, 0.06, 0.10) - gauss(u, 0.94, 0.10));
-        const inv = 1 / Math.max(1e-8, Math.hypot(nx, ny, nz));
-        nor[p3] = nx * inv;
-        nor[p3 + 1] = ny * inv;
-        nor[p3 + 2] = nz * inv;
+function gauss(x, center, sigma) {
+  const d = (x - center) / sigma;
+  return Math.exp(-0.5 * d * d);
+}
 
-        uv[p2] = u;
-        uv[p2 + 1] = v;
+function signedPow(v, p) {
+  return Math.sign(v) * Math.pow(Math.abs(v), p);
+}
 
-        p3 += 3;
-        p2 += 2;
-      }
-    }
+function enableShadows(mesh) {
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  return mesh;
+}
 
-    const idx = new Uint32Array(uSeg * vSeg * 6);
-    let k = 0;
-    for (let i = 0; i < uSeg; i++) {
-      const a0 = i * cols;
-      const a1 = (i + 1) * cols;
-      for (let j = 0; j < vSeg; j++) {
-        const a = a0 + j, b = a1 + j, c = a1 + j + 1, d = a0 + j + 1;
-        idx[k++] = a; idx[k++] = b; idx[k++] = d;
-        idx[k++] = b; idx[k++] = c; idx[k++] = d;
-      }
-    }
+function box(
+  name,
+  sx,
+  sy,
+  sz,
+  x,
+  y,
+  z,
+  material,
+  rx = 0,
+  ry = 0,
+  rz = 0,
+  parent = group,
+  segX = 1,
+  segY = 1,
+  segZ = 1
+) {
+  const geo = new THREE.BoxGeometry(
+    sx,
+    sy,
+    sz,
+    segX,
+    segY,
+    segZ
+  );
 
-    const g = new THREE.BufferGeometry();
-    g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-    g.setAttribute("normal", new THREE.BufferAttribute(nor, 3));
-    g.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
-    g.setIndex(new THREE.BufferAttribute(idx, 1));
-    g.computeBoundingBox();
-    g.computeBoundingSphere();
-    return g;
-  }
+  const mesh = new THREE.Mesh(
+    geo,
+    material
+  );
 
-  function makeTrapezoidShape(THREE, pts) {
-    const s = new THREE.Shape();
-    s.moveTo(pts[0][0], pts[0][1]);
-    for (let i = 1; i < pts.length; i++) s.lineTo(pts[i][0], pts[i][1]);
-    s.closePath();
-    return s;
-  }
+  mesh.name = name;
 
-  function makeExtrudedPanel(THREE, shape, depth, bevelSize, bevelSegments, material) {
-    const g = new THREE.ExtrudeGeometry(shape, {
-      depth,
-      bevelEnabled: bevelSize > 0,
-      bevelSize,
-      bevelThickness: bevelSize,
-      bevelSegments,
-      curveSegments: 48,
-      steps: 2
-    });
-    g.computeVertexNormals();
-    const m = new THREE.Mesh(g, material);
-    m.castShadow = true;
-    m.receiveShadow = true;
-    return m;
-  }
+  mesh.position.set(
+    x,
+    y,
+    z
+  );
 
-  function addFrontGrille(THREE, car, mats) {
-    const grilleShape = makeTrapezoidShape(THREE, [
-      [-1.30, -0.24], [1.30, -0.24], [1.12, 0.18], [-1.12, 0.18]
-    ]);
-    const grille = makeExtrudedPanel(THREE, grilleShape, 0.035, 0.025, 5, mats.grille);
-    grille.position.set(0, 0.44, -4.21);
-    car.add(grille);
+  mesh.rotation.set(
+    rx,
+    ry,
+    rz
+  );
 
-    // Dense grille lattice.
-    const lattice = new THREE.Group();
-    lattice.position.set(0, 0.44, -4.255);
+  enableShadows(mesh);
 
-    for (let i = -10; i <= 10; i++) {
-      const bar = new THREE.Mesh(
-        new THREE.BoxGeometry(0.018, 0.38, 0.018, 2, 14, 2),
-        mats.grilleGloss
-      );
-      bar.position.x = i * 0.115;
-      bar.rotation.z = 0.11;
-      lattice.add(bar);
-    }
-    for (let j = -3; j <= 3; j++) {
-      const bar = new THREE.Mesh(
-        new THREE.BoxGeometry(2.34, 0.012, 0.018, 42, 2, 2),
-        mats.grilleGloss
-      );
-      bar.position.y = j * 0.055;
-      lattice.add(bar);
-    }
-    car.add(lattice);
+  parent.add(mesh);
 
-    // Lower splitter.
-    const splitter = new THREE.Mesh(
-      new THREE.BoxGeometry(2.95, 0.055, 0.34, 120, 3, 16),
-      mats.carbon
+  return mesh;
+}
+
+function cylinder(
+  name,
+  r1,
+  r2,
+  height,
+  segments,
+  x,
+  y,
+  z,
+  material,
+  rx = 0,
+  ry = 0,
+  rz = 0,
+  parent = group,
+  heightSegments = 1,
+  openEnded = false
+) {
+  const geo = new THREE.CylinderGeometry(
+    r1,
+    r2,
+    height,
+    segments,
+    heightSegments,
+    openEnded
+  );
+
+  const mesh = new THREE.Mesh(
+    geo,
+    material
+  );
+
+  mesh.name = name;
+
+  mesh.position.set(
+    x,
+    y,
+    z
+  );
+
+  mesh.rotation.set(
+    rx,
+    ry,
+    rz
+  );
+
+  enableShadows(mesh);
+
+  parent.add(mesh);
+
+  return mesh;
+}
+
+function sphere(
+  name,
+  radius,
+  x,
+  y,
+  z,
+  material,
+  sx = 1,
+  sy = 1,
+  sz = 1,
+  parent = group,
+  widthSegments = 96,
+  heightSegments = 64
+) {
+  const geo = new THREE.SphereGeometry(
+    radius,
+    widthSegments,
+    heightSegments
+  );
+
+  const mesh = new THREE.Mesh(
+    geo,
+    material
+  );
+
+  mesh.name = name;
+
+  mesh.position.set(
+    x,
+    y,
+    z
+  );
+
+  mesh.scale.set(
+    sx,
+    sy,
+    sz
+  );
+
+  enableShadows(mesh);
+
+  parent.add(mesh);
+
+  return mesh;
+}
+
+function torus(
+  name,
+  radius,
+  tube,
+  radialSegments,
+  tubularSegments,
+  x,
+  y,
+  z,
+  material,
+  rx = 0,
+  ry = 0,
+  rz = 0,
+  parent = group,
+  arc = TAU
+) {
+  const geo = new THREE.TorusGeometry(
+    radius,
+    tube,
+    radialSegments,
+    tubularSegments,
+    arc
+  );
+
+  const mesh = new THREE.Mesh(
+    geo,
+    material
+  );
+
+  mesh.name = name;
+
+  mesh.position.set(
+    x,
+    y,
+    z
+  );
+
+  mesh.rotation.set(
+    rx,
+    ry,
+    rz
+  );
+
+  enableShadows(mesh);
+
+  parent.add(mesh);
+
+  return mesh;
+}
+
+function tube(
+  name,
+  points,
+  radius,
+  material,
+  parent = group,
+  tubularSegments = 220,
+  radialSegments = 14,
+  closed = false
+) {
+  const curve =
+    new THREE.CatmullRomCurve3(
+      points
     );
-    splitter.position.set(0, 0.19, -4.14);
-    splitter.rotation.x = -0.05;
-    car.add(splitter);
 
-    // Splitter side blades.
-    for (const s of [-1, 1]) {
-      const blade = new THREE.Mesh(
-        new THREE.BoxGeometry(0.62, 0.045, 0.40, 32, 3, 18),
-        mats.carbon
-      );
-      blade.position.set(s * 1.38, 0.23, -3.98);
-      blade.rotation.y = s * -0.10;
-      car.add(blade);
-    }
-  }
-
-  function addHeadlights(THREE, car, mats) {
-    const makeOne = side => {
-      const shape = makeTrapezoidShape(THREE, [
-        [-0.61, -0.10], [0.54, -0.15], [0.42, 0.18], [-0.48, 0.13]
-      ]);
-      const lens = makeExtrudedPanel(THREE, shape, 0.055, 0.035, 8, mats.headlightLens);
-      lens.scale.set(0.72, 0.72, 1);
-      lens.position.set(side * 1.03, 0.94, -3.68);
-      lens.rotation.y = side * 0.05;
-      car.add(lens);
-
-      // Black inner housing.
-      const inner = lens.clone();
-      inner.material = mats.headlightInner;
-      inner.scale.multiplyScalar(0.90);
-      inner.position.z += 0.035;
-      car.add(inner);
-
-      // DRL blade.
-      const curve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(side * 0.72, 1.02, -3.78),
-        new THREE.Vector3(side * 0.96, 1.06, -3.80),
-        new THREE.Vector3(side * 1.24, 1.03, -3.78),
-        new THREE.Vector3(side * 1.35, 0.93, -3.75)
-      ]);
-      const tube = new THREE.Mesh(
-        new THREE.TubeGeometry(curve, 140, 0.024, 12, false),
-        mats.drl
-      );
-      car.add(tube);
-
-      // Projector elements.
-      for (let k = 0; k < 3; k++) {
-        const bulb = new THREE.Mesh(
-          new THREE.SphereGeometry(0.065 - k * 0.006, 64, 40),
-          mats.projector
-        );
-        bulb.position.set(side * (0.90 + k * 0.15), 0.96 - k * 0.015, -3.80);
-        car.add(bulb);
-      }
-    };
-
-    makeOne(-1);
-    makeOne(1);
-  }
-
-  function addHoodLines(THREE, car, mats) {
-    for (const side of [-1, 1]) {
-      const c1 = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(side * 0.46, 0.98, -3.58),
-        new THREE.Vector3(side * 0.56, 1.03, -2.85),
-        new THREE.Vector3(side * 0.64, 1.05, -2.20),
-        new THREE.Vector3(side * 0.72, 1.02, -1.67)
-      ]);
-      const seam = new THREE.Mesh(
-        new THREE.TubeGeometry(c1, 220, 0.010, 10, false),
-        mats.seam
-      );
-      car.add(seam);
-    }
-
-    const central = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(0, 1.02, -4.02),
-      new THREE.Vector3(0, 1.10, -3.10),
-      new THREE.Vector3(0, 1.12, -2.20),
-      new THREE.Vector3(0, 1.02, -1.62)
-    ]);
-    const ridge = new THREE.Mesh(
-      new THREE.TubeGeometry(central, 260, 0.006, 8, false),
-      mats.clearSeam
+  const geo =
+    new THREE.TubeGeometry(
+      curve,
+      tubularSegments,
+      radius,
+      radialSegments,
+      closed
     );
-    car.add(ridge);
-  }
 
-  function addCabinFrames(THREE, car, mats) {
-    // Roof center panel / dark carbon strip.
-    const roof = new THREE.Mesh(
-      new THREE.BoxGeometry(1.62, 0.035, 1.78, 92, 3, 120),
-      mats.roof
+  const mesh =
+    new THREE.Mesh(
+      geo,
+      material
     );
-    roof.position.set(0, 1.56, 0.52);
-    roof.rotation.x = -0.015;
-    car.add(roof);
 
-    // A pillars / roof rails.
-    for (const side of [-1, 1]) {
-      const railCurve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(side * 1.30, 1.04, -1.25),
-        new THREE.Vector3(side * 1.18, 1.40, -0.76),
-        new THREE.Vector3(side * 0.98, 1.61, -0.18),
-        new THREE.Vector3(side * 0.95, 1.65, 1.10),
-        new THREE.Vector3(side * 1.14, 1.38, 2.00)
-      ]);
-      const rail = new THREE.Mesh(
-        new THREE.TubeGeometry(railCurve, 300, 0.047, 16, false),
-        mats.roof
-      );
-      car.add(rail);
-    }
+  mesh.name = name;
 
-    // Windshield lower edge.
-    const frontBase = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(-1.30, 1.00, -1.31),
-      new THREE.Vector3(-0.65, 0.97, -1.42),
-      new THREE.Vector3(0, 0.96, -1.46),
-      new THREE.Vector3(0.65, 0.97, -1.42),
-      new THREE.Vector3(1.30, 1.00, -1.31)
-    ]);
-    car.add(new THREE.Mesh(
-      new THREE.TubeGeometry(frontBase, 260, 0.025, 12, false),
-      mats.roof
-    ));
-  }
+  enableShadows(mesh);
 
-  function makeWheel(THREE, mats, cfg, side, zPos, frontAxle) {
-    const wheel = new THREE.Group();
-    const xPos = side * (frontAxle ? 1.63 : 1.70);
-    wheel.position.set(xPos, 0.50, zPos);
+  parent.add(mesh);
 
-    // Tire.
-    const tire = new THREE.Mesh(
-      new THREE.TorusGeometry(
-        frontAxle ? 0.50 : 0.52,
-        frontAxle ? 0.195 : 0.205,
-        cfg.torusRadial,
-        cfg.torusTubular
-      ),
-      mats.tire
-    );
-    tire.rotation.y = PI / 2;
-    tire.scale.y = 1.03;
-    wheel.add(tire);
+  return mesh;
+}
 
-    // Sidewall subtle second shell.
-    const sidewall = new THREE.Mesh(
-      new THREE.TorusGeometry(
-        frontAxle ? 0.50 : 0.52,
-        frontAxle ? 0.181 : 0.190,
-        Math.max(48, Math.floor(cfg.torusRadial * 0.65)),
-        Math.max(120, Math.floor(cfg.torusTubular * 0.60))
-      ),
-      mats.sidewall
-    );
-    sidewall.rotation.y = PI / 2;
-    sidewall.position.x = side * 0.006;
-    wheel.add(sidewall);
+function extrudedPanel(
+  name,
+  points,
+  depth,
+  material,
+  x,
+  y,
+  z,
+  rx = 0,
+  ry = 0,
+  rz = 0,
+  parent = group,
+  bevelSize = 0.02,
+  bevelSegments = 5
+) {
+  const shape =
+    new THREE.Shape();
 
-    // Brake rotor.
-    const rotor = new THREE.Mesh(
-      new THREE.CylinderGeometry(
-        0.382, 0.382, 0.055,
-        160, 10, false
-      ),
-      mats.rotor
-    );
-    rotor.rotation.z = PI / 2;
-    wheel.add(rotor);
+  shape.moveTo(
+    points[0][0],
+    points[0][1]
+  );
 
-    // Rotor center.
-    const rotorHub = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.16, 0.16, 0.07, 128, 8),
-      mats.rotorDark
-    );
-    rotorHub.rotation.z = PI / 2;
-    wheel.add(rotorHub);
-
-    // Rim barrel.
-    const barrel = new THREE.Mesh(
-      new THREE.TorusGeometry(0.385, 0.058, 72, 220),
-      mats.rim
-    );
-    barrel.rotation.y = PI / 2;
-    wheel.add(barrel);
-
-    // 5 split spokes.
-    for (let i = 0; i < 5; i++) {
-      const angle = i * TAU / 5;
-      for (const delta of [-0.09, 0.09]) {
-        const spoke = new THREE.Mesh(
-          new THREE.BoxGeometry(0.055, 0.055, 0.355, 5, 5, 24),
-          mats.rim
-        );
-        spoke.position.set(side * 0.08, 0, 0);
-        spoke.rotation.x = angle + delta;
-        spoke.rotation.y = PI / 2;
-        spoke.scale.set(0.60, 0.55, 1.0);
-        // Move outward in wheel plane.
-        spoke.position.y = Math.sin(angle + delta) * 0.18;
-        spoke.position.z = Math.cos(angle + delta) * 0.18;
-        wheel.add(spoke);
-      }
-    }
-
-    // Center cap.
-    const cap = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.082, 0.082, 0.085, 96, 8),
-      mats.centerCap
-    );
-    cap.rotation.z = PI / 2;
-    cap.position.x = side * 0.095;
-    wheel.add(cap);
-
-    // Brake caliper.
-    const caliper = new THREE.Mesh(
-      new THREE.BoxGeometry(0.11, 0.30, 0.13, 8, 20, 8),
-      mats.caliper
-    );
-    caliper.position.set(-side * 0.03, 0.04, frontAxle ? -0.30 : 0.30);
-    caliper.rotation.x = 0.12;
-    wheel.add(caliper);
-
-    // Tread blocks; geometry repeated but still physically separate.
-    const treadGeo = new THREE.BoxGeometry(0.085, 0.025, 0.115, 2, 1, 3);
-    const treadCount = 96;
-    for (let i = 0; i < treadCount; i++) {
-      const a = i * TAU / treadCount;
-      const r = frontAxle ? 0.695 : 0.725;
-      const block = new THREE.Mesh(treadGeo, mats.tread);
-      block.position.set(0, Math.sin(a) * r, Math.cos(a) * r);
-      block.rotation.x = a;
-      block.rotation.z = (i % 2 ? 0.12 : -0.12);
-      wheel.add(block);
-    }
-
-    // Inner wheel-well darkness.
-    const well = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.71, 0.71, 0.10, 160, 4, true),
-      mats.well
-    );
-    well.rotation.z = PI / 2;
-    well.position.x = -side * 0.08;
-    wheel.add(well);
-
-    return wheel;
-  }
-
-  function addWheelArches(THREE, car, mats) {
-    const pairs = [
-      { z: -2.50, w: 1.65, r: 0.76 },
-      { z:  2.56, w: 1.72, r: 0.78 }
-    ];
-    for (const p of pairs) {
-      for (const side of [-1, 1]) {
-        const arch = new THREE.Mesh(
-          new THREE.TorusGeometry(p.r, 0.050, 52, 190, PI * 1.22),
-          mats.archShadow
-        );
-        arch.rotation.y = PI / 2;
-        arch.rotation.z = -PI * 0.11;
-        arch.position.set(side * p.w, 0.51, p.z);
-        arch.scale.set(1, 1.03, 1);
-        car.add(arch);
-      }
-    }
-  }
-
-  function addSideDetails(THREE, car, mats) {
-    for (const side of [-1, 1]) {
-      // Main door sculpting seam.
-      const doorCurve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(side * 1.72, 0.97, -1.10),
-        new THREE.Vector3(side * 1.78, 0.96, -0.30),
-        new THREE.Vector3(side * 1.79, 0.91, 0.70),
-        new THREE.Vector3(side * 1.74, 0.86, 1.38)
-      ]);
-      car.add(new THREE.Mesh(
-        new THREE.TubeGeometry(doorCurve, 260, 0.010, 9, false),
-        mats.seam
-      ));
-
-      const lowerCurve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(side * 1.69, 0.36, -1.24),
-        new THREE.Vector3(side * 1.76, 0.30, -0.20),
-        new THREE.Vector3(side * 1.78, 0.31, 1.05),
-        new THREE.Vector3(side * 1.70, 0.36, 1.72)
-      ]);
-      car.add(new THREE.Mesh(
-        new THREE.TubeGeometry(lowerCurve, 260, 0.016, 10, false),
-        mats.carbon
-      ));
-
-      // Large side intake behind door.
-      const intakeShape = makeTrapezoidShape(THREE, [
-        [-0.43, -0.28], [0.34, -0.24], [0.52, 0.18], [-0.32, 0.24]
-      ]);
-      const intake = makeExtrudedPanel(THREE, intakeShape, 0.045, 0.028, 5, mats.grille);
-      intake.scale.set(0.75, 0.78, 1);
-      intake.rotation.y = side * PI / 2;
-      intake.position.set(side * 1.79, 0.92, 1.64);
-      car.add(intake);
-
-      // Air bridge blade.
-      const blade = new THREE.Mesh(
-        new THREE.BoxGeometry(0.08, 0.50, 0.56, 8, 36, 30),
-        mats.body
-      );
-      blade.position.set(side * 1.82, 1.00, 1.42);
-      blade.rotation.x = -0.10;
-      blade.rotation.z = side * -0.04;
-      car.add(blade);
-
-      // Lower carbon sill.
-      const sill = new THREE.Mesh(
-        new THREE.BoxGeometry(0.16, 0.08, 3.20, 8, 4, 150),
-        mats.carbon
-      );
-      sill.position.set(side * 1.72, 0.19, 0.02);
-      sill.rotation.y = side * -0.012;
-      car.add(sill);
-
-      // Door handle.
-      const handle = new THREE.Mesh(
-        new THREE.BoxGeometry(0.055, 0.030, 0.30, 6, 3, 24),
-        mats.handle
-      );
-      handle.position.set(side * 1.805, 1.02, 0.68);
-      handle.rotation.y = side * 0.03;
-      car.add(handle);
-    }
-  }
-
-  function addMirrors(THREE, car, mats, cfg) {
-    for (const side of [-1, 1]) {
-      const stemCurve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(side * 1.38, 1.12, -0.92),
-        new THREE.Vector3(side * 1.55, 1.17, -0.97),
-        new THREE.Vector3(side * 1.66, 1.21, -1.02)
-      ]);
-      const stem = new THREE.Mesh(
-        new THREE.TubeGeometry(stemCurve, 80, 0.035, 14, false),
-        mats.carbon
-      );
-      car.add(stem);
-
-      const housing = new THREE.Mesh(
-        new THREE.SphereGeometry(0.22, cfg.sphereW, cfg.sphereH),
-        mats.body
-      );
-      housing.scale.set(1.55, 0.58, 0.82);
-      housing.position.set(side * 1.76, 1.24, -1.05);
-      housing.rotation.y = side * 0.15;
-      car.add(housing);
-
-      const mirror = new THREE.Mesh(
-        new THREE.CircleGeometry(0.155, 96),
-        mats.mirror
-      );
-      mirror.scale.set(1.35, 0.70, 1);
-      mirror.rotation.y = side > 0 ? -PI / 2 : PI / 2;
-      mirror.position.set(side * 1.935, 1.245, -1.055);
-      car.add(mirror);
-    }
-  }
-
-  function addRearDetails(THREE, car, mats) {
-    // Tail light ribbons.
-    for (const side of [-1, 1]) {
-      const lightCurve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(side * 0.55, 1.04, 3.86),
-        new THREE.Vector3(side * 0.91, 1.06, 3.91),
-        new THREE.Vector3(side * 1.26, 1.01, 3.86),
-        new THREE.Vector3(side * 1.43, 0.93, 3.78)
-      ]);
-      car.add(new THREE.Mesh(
-        new THREE.TubeGeometry(lightCurve, 180, 0.034, 14, false),
-        mats.tailLight
-      ));
-    }
-
-    // Rear mesh panel.
-    const panelShape = makeTrapezoidShape(THREE, [
-      [-1.30, -0.20], [1.30, -0.20], [1.12, 0.18], [-1.12, 0.18]
-    ]);
-    const panel = makeExtrudedPanel(THREE, panelShape, 0.03, 0.02, 4, mats.grille);
-    panel.position.set(0, 0.62, 4.02);
-    panel.rotation.y = PI;
-    car.add(panel);
-
-    // Diffuser.
-    const diffuser = new THREE.Mesh(
-      new THREE.BoxGeometry(2.62, 0.11, 0.42, 110, 6, 24),
-      mats.carbon
-    );
-    diffuser.position.set(0, 0.20, 3.95);
-    diffuser.rotation.x = 0.08;
-    car.add(diffuser);
-
-    for (let i = -3; i <= 3; i++) {
-      const fin = new THREE.Mesh(
-        new THREE.BoxGeometry(0.035, 0.17, 0.50, 3, 14, 24),
-        mats.carbon
-      );
-      fin.position.set(i * 0.29, 0.19, 3.94);
-      fin.rotation.x = 0.10;
-      car.add(fin);
-    }
-
-    // Dual central exhaust tips.
-    for (const side of [-1, 1]) {
-      const tip = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.095, 0.115, 0.26, 96, 10, true),
-        mats.exhaust
-      );
-      tip.rotation.x = PI / 2;
-      tip.position.set(side * 0.18, 0.48, 4.12);
-      car.add(tip);
-    }
-  }
-
-  function addEngineDeck(THREE, car, mats) {
-    // Rear deck glass / engine cover region.
-    const glass = new THREE.Mesh(
-      new THREE.BoxGeometry(1.34, 0.028, 1.05, 90, 2, 90),
-      mats.engineGlass
-    );
-    glass.position.set(0, 1.12, 2.55);
-    glass.rotation.x = 0.07;
-    car.add(glass);
-
-    // Vent slats.
-    for (const side of [-1, 1]) {
-      for (let i = 0; i < 7; i++) {
-        const slat = new THREE.Mesh(
-          new THREE.BoxGeometry(0.44, 0.022, 0.055, 24, 2, 4),
-          mats.carbon
-        );
-        slat.position.set(side * 0.78, 1.09, 2.24 + i * 0.13);
-        slat.rotation.y = side * 0.08;
-        car.add(slat);
-      }
-    }
-  }
-
-  function addFrontSideVents(THREE, car, mats) {
-    for (const side of [-1, 1]) {
-      const shape = makeTrapezoidShape(THREE, [
-        [-0.26, -0.12], [0.28, -0.08], [0.20, 0.20], [-0.18, 0.18]
-      ]);
-      const vent = makeExtrudedPanel(THREE, shape, 0.025, 0.018, 4, mats.grille);
-      vent.rotation.y = side * PI / 2;
-      vent.position.set(side * 1.72, 0.75, -2.95);
-      vent.scale.set(0.9, 0.95, 1);
-      car.add(vent);
-    }
-  }
-
-  function addBadges(THREE, car, mats) {
-    // Tiny yellow nose badge, intentionally generic rather than a logo texture.
-    const badge = new THREE.Mesh(
-      new THREE.BoxGeometry(0.16, 0.012, 0.10, 16, 2, 10),
-      mats.badge
-    );
-    badge.position.set(0, 1.11, -3.12);
-    badge.rotation.x = -0.19;
-    car.add(badge);
-
-    for (const side of [-1, 1]) {
-      const shield = new THREE.Mesh(
-        new THREE.CircleGeometry(0.105, 64),
-        mats.badge
-      );
-      shield.scale.set(0.78, 1.0, 1);
-      shield.rotation.y = side > 0 ? -PI / 2 : PI / 2;
-      shield.position.set(side * 1.77, 1.11, -1.73);
-      car.add(shield);
-    }
-  }
-
-  function addUnderbody(THREE, car, mats) {
-    const floor = new THREE.Mesh(
-      new THREE.BoxGeometry(2.85, 0.10, 6.55, 80, 4, 180),
-      mats.underbody
-    );
-    floor.position.set(0, 0.08, 0.12);
-    car.add(floor);
-
-    const frontTray = new THREE.Mesh(
-      new THREE.BoxGeometry(2.45, 0.06, 1.05, 80, 3, 60),
-      mats.carbon
-    );
-    frontTray.position.set(0, 0.13, -3.24);
-    frontTray.rotation.x = -0.025;
-    car.add(frontTray);
-  }
-
-  function createMaterials(THREE, colorHex) {
-    const bodyColor = new THREE.Color(colorHex);
-
-    const body = new THREE.MeshPhysicalMaterial({
-      color: bodyColor,
-      metalness: 0.36,
-      roughness: 0.20,
-      clearcoat: 1.0,
-      clearcoatRoughness: 0.055,
-      reflectivity: 1.0,
-      sheen: 0.16,
-      sheenRoughness: 0.35
-    });
-
-    const glass = new THREE.MeshPhysicalMaterial({
-      color: 0x101619,
-      metalness: 0.04,
-      roughness: 0.10,
-      transmission: 0.30,
-      transparent: true,
-      opacity: 0.76,
-      ior: 1.50,
-      thickness: 0.055,
-      clearcoat: 1.0,
-      clearcoatRoughness: 0.04,
-      side: THREE.DoubleSide
-    });
-
-    return {
-      body,
-      glass,
-      roof: new THREE.MeshPhysicalMaterial({
-        color: 0x080a0c, metalness: 0.36, roughness: 0.14,
-        clearcoat: 1, clearcoatRoughness: 0.05
-      }),
-      carbon: new THREE.MeshPhysicalMaterial({
-        color: 0x070809, metalness: 0.42, roughness: 0.29,
-        clearcoat: 0.55, clearcoatRoughness: 0.12
-      }),
-      grille: new THREE.MeshStandardMaterial({
-        color: 0x050607, metalness: 0.30, roughness: 0.52
-      }),
-      grilleGloss: new THREE.MeshStandardMaterial({
-        color: 0x111315, metalness: 0.64, roughness: 0.27
-      }),
-      headlightLens: new THREE.MeshPhysicalMaterial({
-        color: 0xbfd8e6, roughness: 0.06, metalness: 0.02,
-        transmission: 0.38, transparent: true, opacity: 0.72,
-        clearcoat: 1, clearcoatRoughness: 0.02
-      }),
-      headlightInner: new THREE.MeshPhysicalMaterial({
-        color: 0x07090b, metalness: 0.55, roughness: 0.16, clearcoat: 0.75
-      }),
-      drl: new THREE.MeshStandardMaterial({
-        color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 4.6,
-        metalness: 0.0, roughness: 0.15
-      }),
-      projector: new THREE.MeshPhysicalMaterial({
-        color: 0xcce6ff, metalness: 0.42, roughness: 0.05,
-        transmission: 0.18, clearcoat: 1
-      }),
-      tire: new THREE.MeshStandardMaterial({
-        color: 0x111111, roughness: 0.78, metalness: 0.02
-      }),
-      sidewall: new THREE.MeshStandardMaterial({
-        color: 0x151515, roughness: 0.68, metalness: 0.02
-      }),
-      tread: new THREE.MeshStandardMaterial({
-        color: 0x0d0d0d, roughness: 0.88, metalness: 0.0
-      }),
-      rim: new THREE.MeshPhysicalMaterial({
-        color: 0x202327, metalness: 0.92, roughness: 0.16,
-        clearcoat: 0.35
-      }),
-      rotor: new THREE.MeshStandardMaterial({
-        color: 0x73787d, metalness: 0.92, roughness: 0.36
-      }),
-      rotorDark: new THREE.MeshStandardMaterial({
-        color: 0x32363b, metalness: 0.86, roughness: 0.42
-      }),
-      caliper: new THREE.MeshPhysicalMaterial({
-        color: 0xffcc00, metalness: 0.34, roughness: 0.18, clearcoat: 1
-      }),
-      centerCap: new THREE.MeshPhysicalMaterial({
-        color: 0xf3c400, metalness: 0.45, roughness: 0.20, clearcoat: 1
-      }),
-      well: new THREE.MeshStandardMaterial({
-        color: 0x050505, roughness: 0.92, metalness: 0.0, side: THREE.DoubleSide
-      }),
-      archShadow: new THREE.MeshStandardMaterial({
-        color: 0x090909, roughness: 0.65, metalness: 0.15
-      }),
-      mirror: new THREE.MeshPhysicalMaterial({
-        color: 0x9db7c2, metalness: 0.82, roughness: 0.04
-      }),
-      seam: new THREE.MeshStandardMaterial({
-        color: 0x2c0909, metalness: 0.18, roughness: 0.42
-      }),
-      clearSeam: new THREE.MeshPhysicalMaterial({
-        color: bodyColor.clone().multiplyScalar(0.72),
-        metalness: 0.28, roughness: 0.23, clearcoat: 1
-      }),
-      handle: new THREE.MeshPhysicalMaterial({
-        color: bodyColor.clone().multiplyScalar(0.72),
-        metalness: 0.52, roughness: 0.16, clearcoat: 1
-      }),
-      tailLight: new THREE.MeshStandardMaterial({
-        color: 0xff1328, emissive: 0xff001b, emissiveIntensity: 3.5,
-        roughness: 0.16, metalness: 0.08
-      }),
-      exhaust: new THREE.MeshStandardMaterial({
-        color: 0x5f6266, metalness: 0.96, roughness: 0.22, side: THREE.DoubleSide
-      }),
-      engineGlass: new THREE.MeshPhysicalMaterial({
-        color: 0x0b1115, metalness: 0.12, roughness: 0.12,
-        transmission: 0.20, transparent: true, opacity: 0.68,
-        clearcoat: 1, clearcoatRoughness: 0.05
-      }),
-      badge: new THREE.MeshPhysicalMaterial({
-        color: 0xffd324, metalness: 0.32, roughness: 0.18, clearcoat: 1
-      }),
-      underbody: new THREE.MeshStandardMaterial({
-        color: 0x080808, metalness: 0.28, roughness: 0.72
-      })
-    };
-  }
-
-  async function createUltraHighPolyCar(options = {}) {
-    const THREE = options.THREE || (typeof globalThis !== "undefined" ? globalThis.THREE : null);
-    if (!THREE) {
-      throw new Error("THREE não encontrado. Passe { THREE } ou carregue Three.js globalmente.");
-    }
-
-    const qualityName = String(options.quality || "ULTRA").toUpperCase();
-    const cfg = QUALITY[qualityName] || QUALITY.ULTRA;
-    const bodyColor = options.color ?? 0xe31318;
-
-    const car = new THREE.Group();
-    car.name = "UltraHighPolyReferenceSupercar";
-    car.userData.frontDirection = "-Z";
-    car.userData.quality = qualityName;
-    car.userData.reference = "single-image procedural reconstruction";
-
-    const mats = createMaterials(THREE, bodyColor);
-
-    // 1) Multi-million-vertex body shell.
-    const bodyGeo = buildBodyShellGeometry(THREE, cfg.bodyU, cfg.bodyV);
-    const body = new THREE.Mesh(bodyGeo, mats.body);
-    body.name = "BodyShell_UltraHighPoly";
-    body.castShadow = true;
-    body.receiveShadow = true;
-    car.add(body);
-
-    await nextFrame();
-
-    // 2) Dense glass canopy.
-    const cabinGeo = buildCabinGeometry(THREE, cfg.cabinU, cfg.cabinV);
-    const cabin = new THREE.Mesh(cabinGeo, mats.glass);
-    cabin.name = "GlassCanopy";
-    cabin.castShadow = true;
-    cabin.renderOrder = 2;
-    car.add(cabin);
-
-    // 3) Main body detailing.
-    addFrontGrille(THREE, car, mats);
-    addHeadlights(THREE, car, mats);
-    addHoodLines(THREE, car, mats);
-    addCabinFrames(THREE, car, mats);
-    addSideDetails(THREE, car, mats);
-    addFrontSideVents(THREE, car, mats);
-    addMirrors(THREE, car, mats, cfg);
-    addEngineDeck(THREE, car, mats);
-    addRearDetails(THREE, car, mats);
-    addBadges(THREE, car, mats);
-    addUnderbody(THREE, car, mats);
-    addWheelArches(THREE, car, mats);
-
-    await nextFrame();
-
-    // 4) Four detailed wheels.
-    const FL = makeWheel(THREE, mats, cfg, -1, -2.53, true);
-    const FR = makeWheel(THREE, mats, cfg,  1, -2.53, true);
-    const RL = makeWheel(THREE, mats, cfg, -1,  2.56, false);
-    const RR = makeWheel(THREE, mats, cfg,  1,  2.56, false);
-    FL.name = "Wheel_FL";
-    FR.name = "Wheel_FR";
-    RL.name = "Wheel_RL";
-    RR.name = "Wheel_RR";
-    car.add(FL, FR, RL, RR);
-
-    // Mild steering angle similar to a studio pose.
-    if (options.steeringPreview !== false) {
-      FL.rotation.y = 0.055;
-      FR.rotation.y = 0.055;
-    }
-
-    // Pivot/scale/orientation controls.
-    const scale = options.scale ?? 1.0;
-    car.scale.setScalar(scale);
-
-    if (options.rotateY) car.rotation.y = options.rotateY;
-    if (options.position) {
-      const p = options.position;
-      car.position.set(p.x || 0, p.y || 0, p.z || 0);
-    }
-
-    // Count actual geometry vertices.
-    let vertices = 0;
-    let triangles = 0;
-    car.traverse(obj => {
-      if (obj.isMesh && obj.geometry) {
-        const pa = obj.geometry.getAttribute("position");
-        if (pa) vertices += pa.count;
-        if (obj.geometry.index) triangles += obj.geometry.index.count / 3;
-        else if (pa) triangles += pa.count / 3;
-        obj.castShadow = true;
-        obj.receiveShadow = true;
-      }
-    });
-
-    car.userData.vertexCount = Math.round(vertices);
-    car.userData.triangleCount = Math.round(triangles);
-
-    // Helpful console output without forcing any renderer settings.
-    if (options.logStats !== false && typeof console !== "undefined") {
-      console.info(
-        `[UltraHighPolyCar] ${qualityName}: ` +
-        `${car.userData.vertexCount.toLocaleString()} vertices, ` +
-        `${car.userData.triangleCount.toLocaleString()} triangles`
-      );
-    }
-
-    return car;
-  }
-
-  // Global API.
-  if (typeof globalThis !== "undefined") {
-    globalThis.createUltraHighPolyCar = createUltraHighPolyCar;
-  }
-
-  // Plug-and-play for environments that already expose:
-  //   global THREE
-  //   global group
-  //
-  // Disable automatic creation with:
-  //   globalThis.__ULTRA_CAR_NO_AUTO__ = true;
-  if (
-    typeof globalThis !== "undefined" &&
-    globalThis.THREE &&
-    typeof group !== "undefined" &&
-    !globalThis.__ULTRA_CAR_NO_AUTO__
+  for (
+    let i = 1;
+    i < points.length;
+    i++
   ) {
-    createUltraHighPolyCar({ THREE: globalThis.THREE, quality: "ULTRA" })
-      .then(car => group.add(car))
-      .catch(err => console.error("[UltraHighPolyCar]", err));
+    shape.lineTo(
+      points[i][0],
+      points[i][1]
+    );
   }
-})();
+
+  shape.closePath();
+
+  const geo =
+    new THREE.ExtrudeGeometry(
+      shape,
+      {
+        depth,
+        bevelEnabled:
+          bevelSize > 0,
+        bevelSize,
+        bevelThickness:
+          bevelSize,
+        bevelSegments,
+        curveSegments: 64,
+        steps: 2
+      }
+    );
+
+  geo.computeVertexNormals();
+
+  const mesh =
+    new THREE.Mesh(
+      geo,
+      material
+    );
+
+  mesh.name = name;
+
+  mesh.position.set(
+    x,
+    y,
+    z
+  );
+
+  mesh.rotation.set(
+    rx,
+    ry,
+    rz
+  );
+
+  enableShadows(mesh);
+
+  parent.add(mesh);
+
+  return mesh;
+}
+
+
+// ============================================================================
+// PERFIL LONGITUDINAL DA CARROCERIA
+// ============================================================================
+
+function bodyProfile(u) {
+
+  const arch =
+    Math.pow(
+      Math.max(
+        0,
+        Math.sin(
+          PI * u
+        )
+      ),
+      0.48
+    );
+
+  const frontTaper =
+    0.54 +
+    0.46 *
+    smoothstep(
+      0.00,
+      0.10,
+      u
+    );
+
+  const rearTaper =
+    0.84 +
+    0.16 *
+    (
+      1 -
+      smoothstep(
+        0.90,
+        1.00,
+        u
+      )
+    );
+
+  let halfW =
+    (
+      0.54 +
+      1.38 * arch
+    ) *
+    frontTaper *
+    rearTaper;
+
+  // ombros dos paralamas
+  halfW +=
+    0.16 *
+    gauss(
+      u,
+      0.225,
+      0.060
+    );
+
+  halfW +=
+    0.27 *
+    gauss(
+      u,
+      0.795,
+      0.072
+    );
+
+  // cintura da porta
+  halfW -=
+    0.065 *
+    gauss(
+      u,
+      0.515,
+      0.11
+    );
+
+  let halfH =
+    0.255 +
+    0.345 *
+    Math.pow(
+      Math.max(
+        0,
+        Math.sin(
+          PI * u
+        )
+      ),
+      0.70
+    );
+
+  halfH +=
+    0.080 *
+    gauss(
+      u,
+      0.20,
+      0.09
+    );
+
+  halfH +=
+    0.115 *
+    gauss(
+      u,
+      0.79,
+      0.10
+    );
+
+  halfH *=
+    0.82 +
+    0.18 *
+    smoothstep(
+      0.00,
+      0.11,
+      u
+    );
+
+  let centerY =
+    0.48;
+
+  centerY +=
+    0.08 *
+    smoothstep(
+      0.18,
+      0.82,
+      u
+    );
+
+  centerY +=
+    0.055 *
+    gauss(
+      u,
+      0.70,
+      0.18
+    );
+
+  centerY -=
+    0.055 *
+    gauss(
+      u,
+      0.03,
+      0.05
+    );
+
+  return {
+    halfW,
+    halfH,
+    centerY
+  };
+}
+
+
+// ============================================================================
+// CASCO PRINCIPAL ULTRA HIGH POLY
+// ============================================================================
+
+function createUltraBodyShell() {
+
+  const rows =
+    BODY_U + 1;
+
+  const cols =
+    BODY_V + 1;
+
+  const vertexCount =
+    rows * cols;
+
+  const positions =
+    new Float32Array(
+      vertexCount * 3
+    );
+
+  const normals =
+    new Float32Array(
+      vertexCount * 3
+    );
+
+  const uvs =
+    new Float32Array(
+      vertexCount * 2
+    );
+
+  const profileW =
+    new Float32Array(
+      rows
+    );
+
+  const profileH =
+    new Float32Array(
+      rows
+    );
+
+  const profileC =
+    new Float32Array(
+      rows
+    );
+
+  for (
+    let i = 0;
+    i < rows;
+    i++
+  ) {
+
+    const u =
+      i / BODY_U;
+
+    const p =
+      bodyProfile(
+        u
+      );
+
+    profileW[i] =
+      p.halfW;
+
+    profileH[i] =
+      p.halfH;
+
+    profileC[i] =
+      p.centerY;
+  }
+
+
+  const dW =
+    new Float32Array(
+      rows
+    );
+
+  const dH =
+    new Float32Array(
+      rows
+    );
+
+  const dC =
+    new Float32Array(
+      rows
+    );
+
+
+  const totalLength =
+    REAR_Z -
+    FRONT_Z;
+
+
+  for (
+    let i = 0;
+    i < rows;
+    i++
+  ) {
+
+    const i0 =
+      Math.max(
+        0,
+        i - 1
+      );
+
+    const i1 =
+      Math.min(
+        BODY_U,
+        i + 1
+      );
+
+    const dz =
+      (
+        (i1 - i0) /
+        BODY_U
+      ) *
+      totalLength ||
+      1;
+
+    dW[i] =
+      (
+        profileW[i1] -
+        profileW[i0]
+      ) /
+      dz;
+
+    dH[i] =
+      (
+        profileH[i1] -
+        profileH[i0]
+      ) /
+      dz;
+
+    dC[i] =
+      (
+        profileC[i1] -
+        profileC[i0]
+      ) /
+      dz;
+  }
+
+
+  let p3 = 0;
+  let p2 = 0;
+
+
+  for (
+    let i = 0;
+    i < rows;
+    i++
+  ) {
+
+    const u =
+      i / BODY_U;
+
+    const z =
+      mix(
+        FRONT_Z,
+        REAR_Z,
+        u
+      );
+
+    const w =
+      profileW[i];
+
+    const h =
+      profileH[i];
+
+    const cy =
+      profileC[i];
+
+
+    // campos de escultura
+    const hoodCrown =
+      0.078 *
+      gauss(
+        u,
+        0.225,
+        0.115
+      );
+
+    const rearDeck =
+      0.060 *
+      gauss(
+        u,
+        0.79,
+        0.12
+      );
+
+    const beltTension =
+      0.035 *
+      gauss(
+        u,
+        0.53,
+        0.22
+      );
+
+    const lowerSideCut =
+      0.110 *
+      gauss(
+        u,
+        0.53,
+        0.22
+      );
+
+    const frontFenderCrown =
+      0.055 *
+      gauss(
+        u,
+        0.235,
+        0.055
+      );
+
+    const rearFenderCrown =
+      0.070 *
+      gauss(
+        u,
+        0.79,
+        0.062
+      );
+
+
+    for (
+      let j = 0;
+      j < cols;
+      j++
+    ) {
+
+      const v =
+        j / BODY_V;
+
+      const a =
+        v * TAU;
+
+      const ca =
+        Math.cos(
+          a
+        );
+
+      const sa =
+        Math.sin(
+          a
+        );
+
+
+      // seção superelíptica
+      const sx =
+        signedPow(
+          ca,
+          0.73
+        );
+
+      const sy =
+        signedPow(
+          sa,
+          0.67
+        );
+
+
+      let x =
+        w * sx;
+
+      let y =
+        cy +
+        h * sy;
+
+
+      const top =
+        Math.max(
+          0,
+          sa
+        );
+
+      const bottom =
+        Math.max(
+          0,
+          -sa
+        );
+
+      const side =
+        Math.pow(
+          Math.abs(
+            ca
+          ),
+          5.0
+        );
+
+
+      // capô e deck
+      y +=
+        (
+          hoodCrown +
+          rearDeck
+        ) *
+        Math.pow(
+          top,
+          5.0
+        );
+
+
+      // tensão de ombro / beltline
+      y +=
+        beltTension *
+        side *
+        Math.pow(
+          top,
+          0.72
+        );
+
+
+      // canal lateral inferior
+      y -=
+        lowerSideCut *
+        side *
+        Math.pow(
+          bottom,
+          1.18
+        );
+
+
+      // paralamas mais musculosos
+      x *=
+        1.0 +
+        (
+          frontFenderCrown +
+          rearFenderCrown
+        ) *
+        side;
+
+
+      // cintura central
+      x *=
+        1.0 -
+        0.028 *
+        gauss(
+          u,
+          0.50,
+          0.12
+        ) *
+        Math.pow(
+          top,
+          1.35
+        );
+
+
+      // leve achatamento do nariz
+      if (
+        u < 0.115
+      ) {
+
+        const f =
+          1 -
+          smoothstep(
+            0,
+            0.115,
+            u
+          );
+
+        y -=
+          0.070 *
+          f *
+          Math.pow(
+            top,
+            1.7
+          );
+      }
+
+
+      // traseira mais vertical
+      if (
+        u > 0.89
+      ) {
+
+        const f =
+          smoothstep(
+            0.89,
+            1.0,
+            u
+          );
+
+        x *=
+          1.0 -
+          0.06 * f;
+      }
+
+
+      positions[p3] =
+        x;
+
+      positions[p3 + 1] =
+        y;
+
+      positions[p3 + 2] =
+        z;
+
+
+      // normal aproximada analítica
+      let nx =
+        sx /
+        Math.max(
+          0.001,
+          w
+        );
+
+      let ny =
+        sy /
+        Math.max(
+          0.001,
+          h
+        );
+
+      let nz =
+        -(
+          dW[i] *
+          Math.abs(nx) *
+          0.68
+          +
+          dH[i] *
+          Math.abs(ny) *
+          0.54
+          +
+          dC[i] *
+          ny *
+          0.72
+        );
+
+
+      const inv =
+        1 /
+        Math.max(
+          1e-8,
+          Math.hypot(
+            nx,
+            ny,
+            nz
+          )
+        );
+
+
+      normals[p3] =
+        nx * inv;
+
+      normals[p3 + 1] =
+        ny * inv;
+
+      normals[p3 + 2] =
+        nz * inv;
+
+
+      uvs[p2] =
+        u;
+
+      uvs[p2 + 1] =
+        v;
+
+
+      p3 += 3;
+      p2 += 2;
+    }
+  }
+
+
+  const index =
+    new Uint32Array(
+      BODY_U *
+      BODY_V *
+      6
+    );
+
+
+  let k = 0;
+
+
+  for (
+    let i = 0;
+    i < BODY_U;
+    i++
+  ) {
+
+    const row0 =
+      i * cols;
+
+    const row1 =
+      (i + 1) *
+      cols;
+
+
+    for (
+      let j = 0;
+      j < BODY_V;
+      j++
+    ) {
+
+      const a =
+        row0 + j;
+
+      const b =
+        row1 + j;
+
+      const c =
+        row1 + j + 1;
+
+      const d =
+        row0 + j + 1;
+
+
+      index[k++] = a;
+      index[k++] = b;
+      index[k++] = d;
+
+      index[k++] = b;
+      index[k++] = c;
+      index[k++] = d;
+    }
+  }
+
+
+  const geo =
+    new THREE.BufferGeometry();
+
+
+  geo.setAttribute(
+    "position",
+    new THREE.BufferAttribute(
+      positions,
+      3
+    )
+  );
+
+
+  geo.setAttribute(
+    "normal",
+    new THREE.BufferAttribute(
+      normals,
+      3
+    )
+  );
+
+
+  geo.setAttribute(
+    "uv",
+    new THREE.BufferAttribute(
+      uvs,
+      2
+    )
+  );
+
+
+  geo.setIndex(
+    new THREE.BufferAttribute(
+      index,
+      1
+    )
+  );
+
+
+  geo.computeBoundingBox();
+  geo.computeBoundingSphere();
+
+
+  const mesh =
+    new THREE.Mesh(
+      geo,
+      bodyMat
+    );
+
+
+  mesh.name =
+    "carroceria_principal_ultra_high_poly";
+
+
+  enableShadows(mesh);
+
+
+  group.add(mesh);
+
+
+  return mesh;
+}
+
+
+const bodyShell =
+  createUltraBodyShell();
+
+await sleep(35);
+
+
+// ============================================================================
+// CABINE / CANOPY HIGH POLY
+// ============================================================================
+
+function createCabinShell() {
+
+  const rows =
+    CABIN_U + 1;
+
+  const cols =
+    CABIN_V + 1;
+
+  const count =
+    rows * cols;
+
+
+  const positions =
+    new Float32Array(
+      count * 3
+    );
+
+  const normals =
+    new Float32Array(
+      count * 3
+    );
+
+  const uvs =
+    new Float32Array(
+      count * 2
+    );
+
+
+  const z0 =
+    -1.48;
+
+  const z1 =
+    2.25;
+
+
+  let p3 = 0;
+  let p2 = 0;
+
+
+  for (
+    let i = 0;
+    i < rows;
+    i++
+  ) {
+
+    const u =
+      i / CABIN_U;
+
+    const z =
+      mix(
+        z0,
+        z1,
+        u
+      );
+
+
+    const fade =
+      Math.pow(
+        Math.max(
+          0,
+          Math.sin(
+            PI * u
+          )
+        ),
+        0.34
+      );
+
+
+    const halfW =
+      0.84 +
+      0.56 * fade;
+
+
+    const roofH =
+      0.28 +
+      0.46 * fade;
+
+
+    const baseY =
+      0.96 +
+      0.055 *
+      gauss(
+        u,
+        0.60,
+        0.26
+      );
+
+
+    for (
+      let j = 0;
+      j < cols;
+      j++
+    ) {
+
+      const v =
+        j / CABIN_V;
+
+      const q =
+        mix(
+          -1,
+          1,
+          v
+        );
+
+      const absQ =
+        Math.abs(
+          q
+        );
+
+
+      const sideFall =
+        Math.pow(
+          Math.max(
+            0,
+            1 -
+            Math.pow(
+              absQ,
+              1.84
+            )
+          ),
+          0.55
+        );
+
+
+      let x =
+        halfW * q;
+
+
+      let y =
+        baseY +
+        roofH *
+        sideFall;
+
+
+      // windshield frontal mergulhando no capô
+      y -=
+        0.145 *
+        gauss(
+          u,
+          0.055,
+          0.075
+        ) *
+        (
+          0.34 +
+          0.66 *
+          sideFall
+        );
+
+
+      // rear glass
+      y -=
+        0.060 *
+        gauss(
+          u,
+          0.95,
+          0.07
+        ) *
+        (
+          0.36 +
+          0.64 *
+          sideFall
+        );
+
+
+      // teto ligeiramente côncavo longitudinalmente
+      y -=
+        0.025 *
+        gauss(
+          u,
+          0.53,
+          0.22
+        ) *
+        Math.pow(
+          sideFall,
+          4
+        );
+
+
+      positions[p3] =
+        x;
+
+      positions[p3 + 1] =
+        y;
+
+      positions[p3 + 2] =
+        z;
+
+
+      let nx =
+        q * 0.86;
+
+      let ny =
+        0.48 +
+        0.92 *
+        sideFall;
+
+      let nz =
+        -0.26 *
+        (
+          gauss(
+            u,
+            0.07,
+            0.11
+          )
+          -
+          gauss(
+            u,
+            0.93,
+            0.11
+          )
+        );
+
+
+      const inv =
+        1 /
+        Math.max(
+          1e-8,
+          Math.hypot(
+            nx,
+            ny,
+            nz
+          )
+        );
+
+
+      normals[p3] =
+        nx * inv;
+
+      normals[p3 + 1] =
+        ny * inv;
+
+      normals[p3 + 2] =
+        nz * inv;
+
+
+      uvs[p2] =
+        u;
+
+      uvs[p2 + 1] =
+        v;
+
+
+      p3 += 3;
+      p2 += 2;
+    }
+  }
+
+
+  const index =
+    new Uint32Array(
+      CABIN_U *
+      CABIN_V *
+      6
+    );
+
+
+  let k = 0;
+
+
+  for (
+    let i = 0;
+    i < CABIN_U;
+    i++
+  ) {
+
+    const row0 =
+      i * cols;
+
+    const row1 =
+      (i + 1) *
+      cols;
+
+
+    for (
+      let j = 0;
+      j < CABIN_V;
+      j++
+    ) {
+
+      const a =
+        row0 + j;
+
+      const b =
+        row1 + j;
+
+      const c =
+        row1 + j + 1;
+
+      const d =
+        row0 + j + 1;
+
+
+      index[k++] = a;
+      index[k++] = b;
+      index[k++] = d;
+
+      index[k++] = b;
+      index[k++] = c;
+      index[k++] = d;
+    }
+  }
+
+
+  const geo =
+    new THREE.BufferGeometry();
+
+
+  geo.setAttribute(
+    "position",
+    new THREE.BufferAttribute(
+      positions,
+      3
+    )
+  );
+
+
+  geo.setAttribute(
+    "normal",
+    new THREE.BufferAttribute(
+      normals,
+      3
+    )
+  );
+
+
+  geo.setAttribute(
+    "uv",
+    new THREE.BufferAttribute(
+      uvs,
+      2
+    )
+  );
+
+
+  geo.setIndex(
+    new THREE.BufferAttribute(
+      index,
+      1
+    )
+  );
+
+
+  geo.computeBoundingBox();
+  geo.computeBoundingSphere();
+
+
+  const mesh =
+    new THREE.Mesh(
+      geo,
+      glassMat
+    );
+
+
+  mesh.name =
+    "canopy_vidro_high_poly";
+
+
+  mesh.renderOrder = 2;
+
+
+  enableShadows(mesh);
+
+
+  group.add(mesh);
+
+
+  return mesh;
+}
+
+
+const cabinShell =
+  createCabinShell();
+
+await sleep(25);
+
+
+// ============================================================================
+// TETO CENTRAL E PILARES
+// ============================================================================
+
+box(
+  "teto_carbono",
+  1.58,
+  0.036,
+  1.80,
+  0,
+  1.575,
+  0.48,
+  carbonMat,
+  -0.012,
+  0,
+  0,
+  group,
+  84,
+  3,
+  110
+);
+
+
+for (
+  const side of [-1, 1]
+) {
+
+  tube(
+    "pilar_A_" + side,
+    [
+      new THREE.Vector3(
+        side * 1.32,
+        1.02,
+        -1.36
+      ),
+      new THREE.Vector3(
+        side * 1.21,
+        1.31,
+        -0.92
+      ),
+      new THREE.Vector3(
+        side * 1.05,
+        1.53,
+        -0.42
+      ),
+      new THREE.Vector3(
+        side * 0.96,
+        1.62,
+        -0.06
+      )
+    ],
+    0.046,
+    carbonMat,
+    group,
+    220,
+    16
+  );
+
+
+  tube(
+    "rail_teto_" + side,
+    [
+      new THREE.Vector3(
+        side * 0.96,
+        1.62,
+        -0.06
+      ),
+      new THREE.Vector3(
+        side * 0.93,
+        1.65,
+        0.52
+      ),
+      new THREE.Vector3(
+        side * 0.96,
+        1.62,
+        1.18
+      ),
+      new THREE.Vector3(
+        side * 1.10,
+        1.49,
+        1.67
+      ),
+      new THREE.Vector3(
+        side * 1.23,
+        1.27,
+        2.03
+      )
+    ],
+    0.047,
+    carbonMat,
+    group,
+    260,
+    16
+  );
+}
+
+
+tube(
+  "base_parabrisa",
+  [
+    new THREE.Vector3(
+      -1.31,
+      1.00,
+      -1.40
+    ),
+    new THREE.Vector3(
+      -0.66,
+      0.96,
+      -1.51
+    ),
+    new THREE.Vector3(
+      0,
+      0.95,
+      -1.55
+    ),
+    new THREE.Vector3(
+      0.66,
+      0.96,
+      -1.51
+    ),
+    new THREE.Vector3(
+      1.31,
+      1.00,
+      -1.40
+    )
+  ],
+  0.025,
+  carbonMat,
+  group,
+  260,
+  14
+);
+
+await sleep(20);
+
+
+// ============================================================================
+// CAPÔ - LINHAS DE TENSÃO E RECORTES
+// ============================================================================
+
+for (
+  const side of [-1, 1]
+) {
+
+  tube(
+    "vinco_capo_externo_" + side,
+    [
+      new THREE.Vector3(
+        side * 0.42,
+        1.00,
+        -3.92
+      ),
+      new THREE.Vector3(
+        side * 0.52,
+        1.06,
+        -3.20
+      ),
+      new THREE.Vector3(
+        side * 0.61,
+        1.095,
+        -2.45
+      ),
+      new THREE.Vector3(
+        side * 0.70,
+        1.055,
+        -1.69
+      )
+    ],
+    0.010,
+    seamMat,
+    group,
+    260,
+    10
+  );
+
+
+  tube(
+    "vinco_capo_interno_" + side,
+    [
+      new THREE.Vector3(
+        side * 0.22,
+        1.01,
+        -3.85
+      ),
+      new THREE.Vector3(
+        side * 0.27,
+        1.09,
+        -3.02
+      ),
+      new THREE.Vector3(
+        side * 0.31,
+        1.11,
+        -2.22
+      ),
+      new THREE.Vector3(
+        side * 0.34,
+        1.06,
+        -1.72
+      )
+    ],
+    0.006,
+    bodyDarkMat,
+    group,
+    240,
+    8
+  );
+}
+
+await sleep(20);
+
+
+// ============================================================================
+// PARA-CHOQUE DIANTEIRO / BOCA CENTRAL
+// ============================================================================
+
+extrudedPanel(
+  "entrada_ar_frontal_principal",
+  [
+    [-1.28, -0.22],
+    [1.28, -0.22],
+    [1.12, 0.18],
+    [-1.12, 0.18]
+  ],
+  0.040,
+  grilleMat,
+  0,
+  0.43,
+  -4.22,
+  0,
+  0,
+  0,
+  group,
+  0.026,
+  6
+);
+
+
+// grade horizontal
+for (
+  let row = -4;
+  row <= 4;
+  row++
+) {
+
+  box(
+    "grade_frontal_horizontal",
+    2.32,
+    0.013,
+    0.020,
+    0,
+    0.43 +
+    row * 0.043,
+    -4.255,
+    grilleGlossMat,
+    0,
+    0,
+    0,
+    group,
+    90,
+    1,
+    2
+  );
+}
+
+
+// grade diagonal/vertical
+for (
+  let i = -11;
+  i <= 11;
+  i++
+) {
+
+  box(
+    "grade_frontal_vertical",
+    0.018,
+    0.38,
+    0.018,
+    i * 0.105,
+    0.43,
+    -4.265,
+    grilleGlossMat,
+    0,
+    0,
+    0.13,
+    group,
+    1,
+    12,
+    1
+  );
+}
+
+
+// splitter principal
+box(
+  "splitter_frontal_central",
+  2.90,
+  0.058,
+  0.36,
+  0,
+  0.185,
+  -4.13,
+  carbonMat,
+  -0.04,
+  0,
+  0,
+  group,
+  120,
+  3,
+  18
+);
+
+
+// extremidades do splitter
+for (
+  const side of [-1, 1]
+) {
+
+  box(
+    "splitter_frontal_lateral_" + side,
+    0.65,
+    0.050,
+    0.42,
+    side * 1.36,
+    0.22,
+    -4.00,
+    carbonMat,
+    -0.025,
+    side * -0.10,
+    0,
+    group,
+    34,
+    3,
+    20
+  );
+}
+
+await sleep(20);
+
+
+// ============================================================================
+// ENTRADAS DE AR DIANTEIRAS LATERAIS
+// ============================================================================
+
+for (
+  const side of [-1, 1]
+) {
+
+  extrudedPanel(
+    "entrada_ar_frontal_lateral_" + side,
+    [
+      [-0.25, -0.13],
+      [0.28, -0.09],
+      [0.20, 0.20],
+      [-0.19, 0.18]
+    ],
+    0.027,
+    grilleMat,
+    side * 1.69,
+    0.73,
+    -3.11,
+    0,
+    side * PI / 2,
+    0,
+    group,
+    0.018,
+    5
+  );
+
+
+  // lâmina aerodinâmica interna
+  box(
+    "lamina_entrada_frontal_" + side,
+    0.055,
+    0.40,
+    0.36,
+    side * 1.72,
+    0.76,
+    -3.07,
+    carbonMat,
+    -0.10,
+    0,
+    side * 0.08,
+    group,
+    5,
+    24,
+    18
+  );
+}
+
+await sleep(20);
+
+
+// ============================================================================
+// FARÓIS DIANTEIROS COMPLEXOS
+// ============================================================================
+
+function createHeadlight(side) {
+
+  const headlightGroup =
+    new THREE.Group();
+
+  headlightGroup.name =
+    "farol_" + side;
+
+  group.add(
+    headlightGroup
+  );
+
+
+  extrudedPanel(
+    "lente_farol",
+    [
+      [-0.58, -0.11],
+      [0.52, -0.15],
+      [0.43, 0.17],
+      [-0.48, 0.14]
+    ],
+    0.056,
+    headlightLensMat,
+    side * 1.04,
+    0.94,
+    -3.70,
+    0,
+    side * 0.04,
+    0,
+    headlightGroup,
+    0.035,
+    9
+  );
+
+
+  extrudedPanel(
+    "housing_farol",
+    [
+      [-0.50, -0.085],
+      [0.45, -0.12],
+      [0.36, 0.13],
+      [-0.42, 0.11]
+    ],
+    0.045,
+    headlightInnerMat,
+    side * 1.04,
+    0.94,
+    -3.735,
+    0,
+    side * 0.04,
+    0,
+    headlightGroup,
+    0.024,
+    6
+  );
+
+
+  tube(
+    "drl_superior",
+    [
+      new THREE.Vector3(
+        side * 0.75,
+        1.025,
+        -3.80
+      ),
+      new THREE.Vector3(
+        side * 0.96,
+        1.065,
+        -3.82
+      ),
+      new THREE.Vector3(
+        side * 1.20,
+        1.04,
+        -3.80
+      ),
+      new THREE.Vector3(
+        side * 1.34,
+        0.95,
+        -3.76
+      )
+    ],
+    0.021,
+    drlMat,
+    headlightGroup,
+    160,
+    12
+  );
+
+
+  tube(
+    "drl_inferior",
+    [
+      new THREE.Vector3(
+        side * 0.80,
+        0.915,
+        -3.80
+      ),
+      new THREE.Vector3(
+        side * 1.02,
+        0.895,
+        -3.82
+      ),
+      new THREE.Vector3(
+        side * 1.25,
+        0.90,
+        -3.79
+      )
+    ],
+    0.011,
+    drlMat,
+    headlightGroup,
+    120,
+    10
+  );
+
+
+  for (
+    let k = 0;
+    k < 3;
+    k++
+  ) {
+
+    sphere(
+      "projetor_farol_" + k,
+      0.067 -
+      k * 0.006,
+      side *
+      (
+        0.91 +
+        k * 0.15
+      ),
+      0.965 -
+      k * 0.013,
+      -3.83,
+      projectorMat,
+      1.0,
+      0.80,
+      0.55,
+      headlightGroup,
+      80,
+      52
+    );
+
+
+    torus(
+      "aro_projetor_" + k,
+      0.070 -
+      k * 0.004,
+      0.008,
+      24,
+      72,
+      side *
+      (
+        0.91 +
+        k * 0.15
+      ),
+      0.965 -
+      k * 0.013,
+      -3.845,
+      rimEdgeMat,
+      0,
+      0,
+      0,
+      headlightGroup
+    );
+  }
+
+
+  return headlightGroup;
+}
+
+
+createHeadlight(
+  -1
+);
+
+createHeadlight(
+  1
+);
+
+await sleep(30);
+
+
+// ============================================================================
+// PARALAMAS E ARCOS VISUAIS
+// ============================================================================
+
+const wheelArchData = [
+  {
+    z: -2.52,
+    x: 1.65,
+    radius: 0.765
+  },
+  {
+    z: 2.55,
+    x: 1.72,
+    radius: 0.795
+  }
+];
+
+
+for (
+  const arch of wheelArchData
+) {
+
+  for (
+    const side of [-1, 1]
+  ) {
+
+    torus(
+      "sombra_arco_roda",
+      arch.radius,
+      0.046,
+      60,
+      210,
+      side * arch.x,
+      0.51,
+      arch.z,
+      carbonDarkMat,
+      0,
+      PI / 2,
+      -PI * 0.11,
+      group,
+      PI * 1.22
+    );
+  }
+}
+
+await sleep(20);
+
+
+// ============================================================================
+// LATERAIS / PORTAS / SOLEIRAS
+// ============================================================================
+
+for (
+  const side of [-1, 1]
+) {
+
+  tube(
+    "linha_porta_superior_" + side,
+    [
+      new THREE.Vector3(
+        side * 1.70,
+        0.98,
+        -1.18
+      ),
+      new THREE.Vector3(
+        side * 1.78,
+        0.98,
+        -0.25
+      ),
+      new THREE.Vector3(
+        side * 1.79,
+        0.92,
+        0.72
+      ),
+      new THREE.Vector3(
+        side * 1.73,
+        0.86,
+        1.43
+      )
+    ],
+    0.010,
+    seamMat,
+    group,
+    280,
+    9
+  );
+
+
+  tube(
+    "linha_porta_inferior_" + side,
+    [
+      new THREE.Vector3(
+        side * 1.69,
+        0.36,
+        -1.20
+      ),
+      new THREE.Vector3(
+        side * 1.77,
+        0.30,
+        -0.16
+      ),
+      new THREE.Vector3(
+        side * 1.78,
+        0.31,
+        1.05
+      ),
+      new THREE.Vector3(
+        side * 1.70,
+        0.36,
+        1.72
+      )
+    ],
+    0.014,
+    carbonMat,
+    group,
+    280,
+    10
+  );
+
+
+  // soleira
+  box(
+    "soleira_carbono_" + side,
+    0.16,
+    0.085,
+    3.25,
+    side * 1.72,
+    0.185,
+    0.04,
+    carbonMat,
+    0,
+    side * -0.012,
+    0,
+    group,
+    8,
+    4,
+    150
+  );
+
+
+  // maçaneta embutida
+  box(
+    "macaneta_porta_" + side,
+    0.045,
+    0.028,
+    0.31,
+    side * 1.805,
+    1.01,
+    0.61,
+    bodyDarkMat,
+    0,
+    side * 0.025,
+    0,
+    group,
+    4,
+    3,
+    24
+  );
+
+
+  // intake lateral traseiro
+  extrudedPanel(
+    "entrada_ar_lateral_" + side,
+    [
+      [-0.42, -0.28],
+      [0.35, -0.24],
+      [0.53, 0.18],
+      [-0.31, 0.24]
+    ],
+    0.047,
+    grilleMat,
+    side * 1.79,
+    0.92,
+    1.64,
+    0,
+    side * PI / 2,
+    0,
+    group,
+    0.028,
+    6
+  );
+
+
+  // air bridge
+  box(
+    "air_bridge_" + side,
+    0.080,
+    0.52,
+    0.58,
+    side * 1.82,
+    1.00,
+    1.42,
+    bodyMat,
+    -0.10,
+    0,
+    side * -0.04,
+    group,
+    8,
+    36,
+    32
+  );
+
+
+  // escudo lateral pequeno
+  const sideBadge =
+    new THREE.Mesh(
+      new THREE.CircleGeometry(
+        0.105,
+        72
+      ),
+      badgeMat
+    );
+
+  sideBadge.name =
+    "badge_lateral_" + side;
+
+  sideBadge.scale.set(
+    0.78,
+    1.0,
+    1
+  );
+
+  sideBadge.rotation.y =
+    side > 0
+      ? -PI / 2
+      : PI / 2;
+
+  sideBadge.position.set(
+    side * 1.775,
+    1.115,
+    -1.72
+  );
+
+  group.add(
+    sideBadge
+  );
+}
+
+await sleep(30);
+
+
+// ============================================================================
+// RETROVISORES
+// ============================================================================
+
+function createMirror(side) {
+
+  const mirrorGroup =
+    new THREE.Group();
+
+  mirrorGroup.name =
+    "retrovisor_" + side;
+
+  group.add(
+    mirrorGroup
+  );
+
+
+  tube(
+    "haste_retrovisor",
+    [
+      new THREE.Vector3(
+        side * 1.37,
+        1.12,
+        -0.96
+      ),
+      new THREE.Vector3(
+        side * 1.53,
+        1.18,
+        -1.00
+      ),
+      new THREE.Vector3(
+        side * 1.66,
+        1.22,
+        -1.04
+      )
+    ],
+    0.034,
+    carbonMat,
+    mirrorGroup,
+    100,
+    14
+  );
+
+
+  const shell =
+    sphere(
+      "carcaca_retrovisor",
+      0.22,
+      side * 1.77,
+      1.25,
+      -1.06,
+      bodyMat,
+      1.56,
+      0.60,
+      0.84,
+      mirrorGroup,
+      120,
+      80
+    );
+
+
+  shell.rotation.y =
+    side * 0.15;
+
+
+  const glass =
+    new THREE.Mesh(
+      new THREE.CircleGeometry(
+        0.157,
+        112
+      ),
+      mirrorMat
+    );
+
+
+  glass.name =
+    "espelho_retrovisor";
+
+
+  glass.scale.set(
+    1.36,
+    0.70,
+    1
+  );
+
+
+  glass.rotation.y =
+    side > 0
+      ? -PI / 2
+      : PI / 2;
+
+
+  glass.position.set(
+    side * 1.938,
+    1.252,
+    -1.064
+  );
+
+
+  mirrorGroup.add(
+    glass
+  );
+
+
+  return mirrorGroup;
+}
+
+
+createMirror(
+  -1
+);
+
+createMirror(
+  1
+);
+
+await sleep(20);
+
+
+// ============================================================================
+// INTERIOR VISÍVEL
+// ============================================================================
+
+// piso interno
+box(
+  "piso_interior",
+  2.40,
+  0.08,
+  2.55,
+  0,
+  0.62,
+  0.35,
+  interiorBlackMat,
+  0,
+  0,
+  0,
+  group,
+  40,
+  3,
+  60
+);
+
+
+// painel
+box(
+  "dashboard_base",
+  2.34,
+  0.24,
+  0.54,
+  0,
+  1.02,
+  -0.88,
+  interiorBlackMat,
+  -0.10,
+  0,
+  0,
+  group,
+  48,
+  10,
+  24
+);
+
+
+// cluster
+box(
+  "instrument_cluster",
+  0.62,
+  0.22,
+  0.035,
+  -0.48,
+  1.12,
+  -1.17,
+  screenMat,
+  -0.10,
+  0,
+  0,
+  group,
+  24,
+  10,
+  2
+);
+
+
+// tela central
+box(
+  "display_central",
+  0.36,
+  0.30,
+  0.028,
+  0,
+  0.99,
+  -1.16,
+  screenMat,
+  -0.08,
+  0,
+  0,
+  group,
+  20,
+  16,
+  2
+);
+
+
+// console central
+box(
+  "console_central",
+  0.38,
+  0.26,
+  1.62,
+  0,
+  0.73,
+  0.22,
+  carbonMat,
+  -0.03,
+  0,
+  0,
+  group,
+  20,
+  10,
+  60
+);
+
+
+// bancos
+function createSeat(side) {
+
+  const seatGroup =
+    new THREE.Group();
+
+  seatGroup.name =
+    "banco_" + side;
+
+  group.add(
+    seatGroup
+  );
+
+
+  sphere(
+    "assento_banco",
+    0.40,
+    side * 0.56,
+    0.73,
+    0.46,
+    leatherMat,
+    0.98,
+    0.34,
+    1.35,
+    seatGroup,
+    96,
+    64
+  );
+
+
+  sphere(
+    "encosto_banco",
+    0.48,
+    side * 0.56,
+    1.02,
+    0.78,
+    leatherMat,
+    0.90,
+    1.30,
+    0.48,
+    seatGroup,
+    112,
+    72
+  );
+
+
+  sphere(
+    "apoio_cabeca",
+    0.24,
+    side * 0.56,
+    1.39,
+    0.84,
+    leatherRedMat,
+    0.95,
+    1.10,
+    0.55,
+    seatGroup,
+    80,
+    52
+  );
+
+
+  // costuras verticais
+  for (
+    const dx of [-0.13, 0, 0.13]
+  ) {
+
+    box(
+      "costura_banco",
+      0.012,
+      0.58,
+      0.010,
+      side * 0.56 +
+      dx,
+      1.04,
+      0.545,
+      leatherRedMat,
+      0,
+      0,
+      0,
+      seatGroup,
+      1,
+      20,
+      1
+    );
+  }
+
+
+  return seatGroup;
+}
+
+
+createSeat(
+  -1
+);
+
+createSeat(
+  1
+);
+
+
+// volante
+const steeringGroup =
+  new THREE.Group();
+
+steeringGroup.name =
+  "volante";
+
+steeringGroup.position.set(
+  -0.52,
+  1.00,
+  -0.82
+);
+
+steeringGroup.rotation.x =
+  -0.26;
+
+group.add(
+  steeringGroup
+);
+
+
+torus(
+  "aro_volante",
+  0.205,
+  0.027,
+  48,
+  132,
+  0,
+  0,
+  0,
+  leatherMat,
+  0,
+  0,
+  0,
+  steeringGroup
+);
+
+
+for (
+  const angle of [
+    -1.00,
+    0,
+    1.00
+  ]
+) {
+
+  box(
+    "raio_volante",
+    0.040,
+    0.045,
+    0.19,
+    0,
+    0,
+    0,
+    carbonMat,
+    0,
+    0,
+    angle,
+    steeringGroup,
+    3,
+    3,
+    14
+  );
+}
+
+
+cylinder(
+  "miolo_volante",
+  0.078,
+  0.078,
+  0.055,
+  72,
+  0,
+  0,
+  0,
+  carbonMat,
+  PI / 2,
+  0,
+  0,
+  steeringGroup,
+  4
+);
+
+await sleep(30);
+
+
+// ============================================================================
+// TAMPA DO MOTOR / DECK TRASEIRO
+// ============================================================================
+
+box(
+  "vidro_motor",
+  1.34,
+  0.030,
+  1.08,
+  0,
+  1.12,
+  2.54,
+  glassDarkMat,
+  0.07,
+  0,
+  0,
+  group,
+  96,
+  3,
+  96
+);
+
+
+// ripas laterais do deck
+for (
+  const side of [-1, 1]
+) {
+
+  for (
+    let i = 0;
+    i < 8;
+    i++
+  ) {
+
+    box(
+      "ripa_deck_motor_" + side,
+      0.45,
+      0.023,
+      0.052,
+      side * 0.79,
+      1.09,
+      2.17 +
+      i * 0.13,
+      carbonMat,
+      0,
+      side * 0.08,
+      0,
+      group,
+      26,
+      2,
+      4
+    );
+  }
+}
+
+
+// detalhe central engine cover
+box(
+  "engine_cover_central",
+  0.58,
+  0.055,
+  0.82,
+  0,
+  1.09,
+  2.58,
+  carbonMat,
+  0.07,
+  0,
+  0,
+  group,
+  34,
+  4,
+  48
+);
+
+await sleep(20);
+
+
+// ============================================================================
+// TRASEIRA / LANTERNAS / DIFUSOR
+// ============================================================================
+
+for (
+  const side of [-1, 1]
+) {
+
+  tube(
+    "lanterna_traseira_" + side,
+    [
+      new THREE.Vector3(
+        side * 0.53,
+        1.04,
+        3.88
+      ),
+      new THREE.Vector3(
+        side * 0.88,
+        1.065,
+        3.93
+      ),
+      new THREE.Vector3(
+        side * 1.22,
+        1.02,
+        3.89
+      ),
+      new THREE.Vector3(
+        side * 1.43,
+        0.94,
+        3.80
+      )
+    ],
+    0.032,
+    tailLightMat,
+    group,
+    200,
+    14
+  );
+}
+
+
+extrudedPanel(
+  "painel_grade_traseira",
+  [
+    [-1.31, -0.20],
+    [1.31, -0.20],
+    [1.12, 0.18],
+    [-1.12, 0.18]
+  ],
+  0.032,
+  grilleMat,
+  0,
+  0.61,
+  4.02,
+  0,
+  PI,
+  0,
+  group,
+  0.022,
+  5
+);
+
+
+// difusor
+box(
+  "difusor_traseiro",
+  2.64,
+  0.11,
+  0.45,
+  0,
+  0.19,
+  3.96,
+  carbonMat,
+  0.085,
+  0,
+  0,
+  group,
+  110,
+  6,
+  28
+);
+
+
+// aletas
+for (
+  let i = -3;
+  i <= 3;
+  i++
+) {
+
+  box(
+    "aleta_difusor",
+    0.034,
+    0.18,
+    0.52,
+    i * 0.29,
+    0.19,
+    3.96,
+    carbonMat,
+    0.10,
+    0,
+    0,
+    group,
+    3,
+    16,
+    28
+  );
+}
+
+
+// escapamentos centrais
+for (
+  const side of [-1, 1]
+) {
+
+  cylinder(
+    "escape_central_" + side,
+    0.096,
+    0.116,
+    0.27,
+    112,
+    side * 0.18,
+    0.48,
+    4.13,
+    exhaustMat,
+    PI / 2,
+    0,
+    0,
+    group,
+    12,
+    true
+  );
+
+
+  cylinder(
+    "interior_escape_" + side,
+    0.076,
+    0.076,
+    0.275,
+    96,
+    side * 0.18,
+    0.48,
+    4.145,
+    carbonDarkMat,
+    PI / 2,
+    0,
+    0,
+    group,
+    8,
+    true
+  );
+}
+
+await sleep(25);
+
+
+// ============================================================================
+// UNDERBODY
+// ============================================================================
+
+box(
+  "underbody_principal",
+  2.86,
+  0.10,
+  6.52,
+  0,
+  0.08,
+  0.12,
+  carbonDarkMat,
+  0,
+  0,
+  0,
+  group,
+  80,
+  4,
+  180
+);
+
+
+box(
+  "undertray_frontal",
+  2.44,
+  0.058,
+  1.08,
+  0,
+  0.13,
+  -3.23,
+  carbonMat,
+  -0.025,
+  0,
+  0,
+  group,
+  80,
+  3,
+  60
+);
+
+await sleep(20);
+
+
+// ============================================================================
+// RODAS ULTRA DETALHADAS
+// ============================================================================
+
+function createWheel(
+  side,
+  z,
+  isFront
+) {
+
+  const wheel =
+    new THREE.Group();
+
+  wheel.name =
+    isFront
+      ? "roda_dianteira_" + side
+      : "roda_traseira_" + side;
+
+
+  const x =
+    side *
+    (
+      isFront
+        ? 1.63
+        : 1.70
+    );
+
+
+  wheel.position.set(
+    x,
+    0.50,
+    z
+  );
+
+
+  group.add(
+    wheel
+  );
+
+
+  const tireRadius =
+    isFront
+      ? 0.50
+      : 0.52;
+
+
+  const tireTube =
+    isFront
+      ? 0.195
+      : 0.205;
+
+
+  // pneu principal
+  torus(
+    "pneu",
+    tireRadius,
+    tireTube,
+    WHEEL_TORUS_RADIAL,
+    WHEEL_TORUS_TUBULAR,
+    0,
+    0,
+    0,
+    tireMat,
+    0,
+    PI / 2,
+    0,
+    wheel
+  );
+
+
+  // faixa de sidewall
+  torus(
+    "sidewall",
+    tireRadius,
+    tireTube * 0.93,
+    96,
+    240,
+    side * 0.006,
+    0,
+    0,
+    tireMat,
+    0,
+    PI / 2,
+    0,
+    wheel
+  );
+
+
+  // aro externo
+  torus(
+    "aro_externo",
+    0.385,
+    0.057,
+    84,
+    240,
+    side * 0.072,
+    0,
+    0,
+    rimEdgeMat,
+    0,
+    PI / 2,
+    0,
+    wheel
+  );
+
+
+  // aro interno
+  torus(
+    "aro_interno",
+    0.335,
+    0.024,
+    64,
+    210,
+    side * 0.086,
+    0,
+    0,
+    rimMat,
+    0,
+    PI / 2,
+    0,
+    wheel
+  );
+
+
+  // disco de freio
+  cylinder(
+    "disco_freio",
+    0.365,
+    0.365,
+    0.056,
+    180,
+    0,
+    0,
+    0,
+    rotorMat,
+    0,
+    0,
+    PI / 2,
+    wheel,
+    10
+  );
+
+
+  // bell central
+  cylinder(
+    "bell_disco",
+    0.145,
+    0.145,
+    0.068,
+    120,
+    0,
+    0,
+    0,
+    rotorDarkMat,
+    0,
+    0,
+    PI / 2,
+    wheel,
+    8
+  );
+
+
+  // furos do disco visualmente simulados
+  for (
+    let i = 0;
+    i < 24;
+    i++
+  ) {
+
+    const a =
+      i * TAU / 24;
+
+
+    const r =
+      0.285;
+
+
+    cylinder(
+      "furo_disco",
+      0.015,
+      0.015,
+      0.062,
+      18,
+      0,
+      Math.sin(a) * r,
+      Math.cos(a) * r,
+      rotorDarkMat,
+      0,
+      0,
+      PI / 2,
+      wheel,
+      2
+    );
+  }
+
+
+  // 5 pares de raios
+  for (
+    let i = 0;
+    i < 5;
+    i++
+  ) {
+
+    const baseAngle =
+      i *
+      TAU /
+      5;
+
+
+    for (
+      const delta of [-0.11, 0.11]
+    ) {
+
+      const a =
+        baseAngle +
+        delta;
+
+
+      const spoke =
+        box(
+          "raio_roda",
+          0.055,
+          0.070,
+          0.360,
+          side * 0.095,
+          Math.sin(a) * 0.175,
+          Math.cos(a) * 0.175,
+          rimMat,
+          a,
+          PI / 2,
+          0,
+          wheel,
+          5,
+          5,
+          26
+        );
+
+
+      spoke.scale.set(
+        0.66,
+        0.58,
+        1.0
+      );
+    }
+  }
+
+
+  // center cap
+  cylinder(
+    "center_cap",
+    0.082,
+    0.082,
+    0.085,
+    96,
+    side * 0.105,
+    0,
+    0,
+    badgeMat,
+    0,
+    0,
+    PI / 2,
+    wheel,
+    8
+  );
+
+
+  // pinça
+  box(
+    "caliper",
+    0.105,
+    0.31,
+    0.135,
+    -side * 0.030,
+    0.045,
+    isFront
+      ? -0.29
+      : 0.29,
+    caliperMat,
+    0.12,
+    0,
+    0,
+    wheel,
+    8,
+    22,
+    8
+  );
+
+
+  // tread blocks
+  const treadRadius =
+    isFront
+      ? 0.695
+      : 0.725;
+
+
+  for (
+    let i = 0;
+    i < 108;
+    i++
+  ) {
+
+    const a =
+      i *
+      TAU /
+      108;
+
+
+    const block =
+      box(
+        "bloco_banda_rodagem",
+        0.082,
+        0.025,
+        0.118,
+        0,
+        Math.sin(a) *
+        treadRadius,
+        Math.cos(a) *
+        treadRadius,
+        treadMat,
+        a,
+        0,
+        i % 2
+          ? 0.12
+          : -0.12,
+        wheel,
+        2,
+        1,
+        3
+      );
+
+
+    block.rotation.x =
+      a;
+  }
+
+
+  // marcação lateral discreta
+  for (
+    let i = 0;
+    i < 18;
+    i++
+  ) {
+
+    const a =
+      i *
+      TAU /
+      18;
+
+
+    const dot =
+      sphere(
+        "detalhe_sidewall",
+        0.010,
+        side * 0.205,
+        Math.sin(a) *
+        0.52,
+        Math.cos(a) *
+        0.52,
+        rimEdgeMat,
+        1,
+        0.55,
+        0.55,
+        wheel,
+        24,
+        16
+      );
+
+
+    dot.rotation.x =
+      a;
+  }
+
+
+  return wheel;
+}
+
+
+const wheelFL =
+  createWheel(
+    -1,
+    -2.53,
+    true
+  );
+
+
+const wheelFR =
+  createWheel(
+    1,
+    -2.53,
+    true
+  );
+
+
+const wheelRL =
+  createWheel(
+    -1,
+    2.56,
+    false
+  );
+
+
+const wheelRR =
+  createWheel(
+    1,
+    2.56,
+    false
+  );
+
+
+// pequena esterçada para apresentação
+wheelFL.rotation.y =
+  0.055;
+
+wheelFR.rotation.y =
+  0.055;
+
+await sleep(45);
+
+
+// ============================================================================
+// DETALHES DO NARIZ / EMBLEMA
+// ============================================================================
+
+box(
+  "badge_nariz",
+  0.16,
+  0.012,
+  0.10,
+  0,
+  1.105,
+  -3.13,
+  badgeMat,
+  -0.18,
+  0,
+  0,
+  group,
+  14,
+  2,
+  10
+);
+
+
+// recorte frontal inferior
+tube(
+  "linha_para_choque_frontal",
+  [
+    new THREE.Vector3(
+      -1.46,
+      0.54,
+      -4.03
+    ),
+    new THREE.Vector3(
+      -0.85,
+      0.46,
+      -4.21
+    ),
+    new THREE.Vector3(
+      0,
+      0.43,
+      -4.28
+    ),
+    new THREE.Vector3(
+      0.85,
+      0.46,
+      -4.21
+    ),
+    new THREE.Vector3(
+      1.46,
+      0.54,
+      -4.03
+    )
+  ],
+  0.010,
+  seamMat,
+  group,
+  300,
+  10
+);
+
+await sleep(15);
+
+
+// ============================================================================
+// PEQUENOS DETALHES AERODINÂMICOS
+// ============================================================================
+
+for (
+  const side of [-1, 1]
+) {
+
+  // canard discreto
+  box(
+    "canard_frontal_" + side,
+    0.35,
+    0.028,
+    0.16,
+    side * 1.47,
+    0.39,
+    -3.88,
+    carbonMat,
+    -0.12,
+    side * 0.10,
+    side * -0.06,
+    group,
+    24,
+    2,
+    12
+  );
+
+
+  // small vertical fence
+  box(
+    "fence_splitter_" + side,
+    0.025,
+    0.18,
+    0.24,
+    side * 1.58,
+    0.29,
+    -3.90,
+    carbonMat,
+    -0.04,
+    0,
+    0,
+    group,
+    2,
+    12,
+    14
+  );
+}
+
+
+// ============================================================================
+// METADADOS E CONTAGEM REAL DE GEOMETRIA
+// ============================================================================
+
+let totalVertices = 0;
+let totalTriangles = 0;
+let totalMeshes = 0;
+
+group.traverse(
+  object => {
+
+    if (
+      object.isMesh &&
+      object.geometry
+    ) {
+
+      totalMeshes++;
+
+
+      const position =
+        object.geometry.getAttribute(
+          "position"
+        );
+
+
+      if (
+        position
+      ) {
+
+        totalVertices +=
+          position.count;
+
+
+        if (
+          object.geometry.index
+        ) {
+
+          totalTriangles +=
+            object.geometry.index.count /
+            3;
+
+        } else {
+
+          totalTriangles +=
+            position.count /
+            3;
+        }
+      }
+    }
+  }
+);
+
+
+group.userData = {
+
+  type:
+    "ultra_high_poly_supercar",
+
+  style:
+    "modern_mid_engine_supercar",
+
+  procedural:
+    true,
+
+  source:
+    "single_reference_image",
+
+  version:
+    "3.0-next-level",
+
+  frontAxis:
+    "-Z",
+
+  upAxis:
+    "+Y",
+
+  ultraHighPoly:
+    true,
+
+  bodySegmentsU:
+    BODY_U,
+
+  bodySegmentsV:
+    BODY_V,
+
+  cabinSegmentsU:
+    CABIN_U,
+
+  cabinSegmentsV:
+    CABIN_V,
+
+  totalMeshes:
+    totalMeshes,
+
+  totalVertices:
+    Math.round(
+      totalVertices
+    ),
+
+  totalTriangles:
+    Math.round(
+      totalTriangles
+    ),
+
+  onlyCar:
+    true
+};
+
+
+// ============================================================================
+// FINALIZAÇÃO
+// ============================================================================
+
+console.log(
+  "Supercar ultra high poly criado:",
+  group
+);
+
+console.log(
+  "Meshes:",
+  group.userData.totalMeshes
+);
+
+console.log(
+  "Vértices:",
+  group.userData.totalVertices
+);
+
+console.log(
+  "Triângulos:",
+  group.userData.totalTriangles
+);
+
+await sleep(200);
