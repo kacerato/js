@@ -145,6 +145,8 @@ def main():
             "assets/www/src/img2three.js",
             "assets/www/src/geometry.worker.js",
             "assets/www/src/styles.css",
+            "assets/www/src/layout-fixes.css",
+            "assets/www/src/runtime-fixes.js",
         }
         missing = sorted(required - names)
         if missing:
