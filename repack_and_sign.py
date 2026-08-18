@@ -147,6 +147,7 @@ def main():
             "assets/www/src/styles.css",
             "assets/www/src/layout-fixes.css",
             "assets/www/src/runtime-fixes.js",
+            "assets/www/src/tab-layout-sync.js",
         }
         missing = sorted(required - names)
         if missing:
