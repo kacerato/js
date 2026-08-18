@@ -1,0 +1,2574 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#050507" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>Gerador de Modelos Max — 3D Studio</title>
+<style>
+  :root{
+    --bg: #050507;
+    --panel: #0a0a0e;
+    --panel-edge: #1c1c24;
+    --panel-subtle: #121218;
+    --accent: #7c5cff;
+    --accent-hover: #9275ff;
+    --accent-dim: #3d2f80;
+    --accent-bg: rgba(124, 92, 255, 0.12);
+    --text: #f0eff5;
+    --text-dim: #8b8b98;
+    --text-muted: #5e5e6b;
+    --ok: #4ee6a8;
+    --err: #ff5c72;
+    --gold: #f59e0b;
+    --cyan: #06b6d4;
+    --mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, Menlo, monospace;
+    --sans: 'Space Grotesk', -apple-system, 'Segoe UI', sans-serif;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+    --editor-font-size: 13px;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; margin:0; padding:0; }
+  html,body{
+    width:100%; height:100%;
+    background:var(--bg); color:var(--text);
+    font-family:var(--sans);
+    overflow:hidden;
+    overscroll-behavior:none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  #app{
+    display:flex; flex-direction:row;
+    width:100vw; height:100dvh; height:100vh;
+    padding-top: var(--safe-top);
+    padding-bottom: var(--safe-bottom);
+    padding-left: var(--safe-left);
+    padding-right: var(--safe-right);
+    background: var(--bg);
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* ---- 3D Viewport ---- */
+  #viewport{
+    position:relative;
+    width:46%;
+    height:100%;
+    background: #060609;
+    border-right:1px solid var(--panel-edge);
+    overflow:hidden;
+    transition: width .35s cubic-bezier(.4,0,.2,1), height .35s cubic-bezier(.4,0,.2,1);
+    flex-shrink: 0;
+  }
+  #app.fullscreen #viewport{ width:100%!important; height:100%!important; border-right:none; }
+  #app.preview-collapsed #viewport{ width:0!important; height:0!important; min-width:0; border:none; opacity:0; pointer-events:none; }
+  #viewport canvas{ display:block; width:100%!important; height:100%!important; }
+
+  .viewport-badge{
+    position:absolute; top:12px; left:12px;
+    font-family:var(--mono); font-size:10px; letter-spacing:.08em;
+    color:var(--text-dim); text-transform:uppercase;
+    display:flex; align-items:center; gap:6px;
+    pointer-events:none; z-index:3;
+    background: rgba(5,5,7,0.75);
+    padding: 4px 8px; border-radius: 6px;
+    backdrop-filter: blur(6px);
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .dot{ width:7px; height:7px; border-radius:50%; background:var(--text-dim); }
+  .dot.live{ background:var(--ok); box-shadow: 0 0 8px var(--ok); }
+  
+  .viewport-controls-top{
+    position: absolute; top: 12px; right: 12px;
+    display: flex; gap: 6px; z-index: 4;
+  }
+  .vp-btn{
+    background: rgba(10,10,14,0.85);
+    backdrop-filter: blur(8px);
+    color: var(--text);
+    border: 1px solid var(--panel-edge);
+    border-radius: 7px;
+    padding: 5px 9px;
+    font-family: var(--mono);
+    font-size: 11px;
+    display: flex; align-items: center; gap: 5px;
+    cursor: pointer; transition: all .15s ease;
+  }
+  .vp-btn:active{ background: var(--accent-bg); color: var(--accent); transform: scale(.95); }
+  .vp-btn.active{ background: var(--accent); color: #0a0a0d; font-weight: 600; border-color: var(--accent); }
+  .vp-btn svg{ width: 14px; height: 14px; }
+
+  .viewport-hint{
+    position:absolute; bottom:12px; left:12px; right:12px;
+    font-family:var(--mono); font-size:9.5px; color:var(--text-dim);
+    opacity:.75; pointer-events:none; z-index:3;
+    text-align: center;
+  }
+  #app.fullscreen .viewport-hint, #app.preview-collapsed .viewport-hint{ display:none; }
+
+  /* ---- Painel Principal ---- */
+  #panel{
+    flex: 1;
+    min-width: 0;
+    height:100%;
+    background:var(--panel);
+    display:flex; flex-direction:column;
+    transition:width .35s cubic-bezier(.4,0,.2,1), opacity .25s ease;
+    overflow:hidden;
+    position: relative;
+  }
+  #app.fullscreen #panel{ width:0!important; opacity:0; pointer-events:none; display:none; }
+  #app.preview-collapsed #panel{ width:100%!important; flex:1; }
+
+  .panel-header{
+    padding:8px 12px; border-bottom:1px solid var(--panel-edge); flex-shrink:0;
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    background: var(--panel);
+  }
+  .panel-header-left{ min-width:0; flex:1; }
+  .panel-eyebrow{ font-family:var(--mono); font-size:9.5px; letter-spacing:.12em; color:var(--accent); text-transform:uppercase; margin-bottom:2px; }
+  .panel-title{ font-family:var(--sans); font-weight:700; font-size:13.5px; color:var(--text); letter-spacing:.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .panel-sub{ font-family:var(--mono); font-size:10px; color:var(--text-dim); margin-top:2px; line-height:1.45; }
+  .panel-sub b{ color:var(--text); }
+
+  /* ---- Abas no Cabeçalho ---- */
+  #panelTabs{
+    flex-shrink:0; display:flex; gap:4px; align-items:center;
+  }
+  .panel-tab{
+    font-family:var(--mono); font-size:11px; letter-spacing:.02em;
+    padding:6px 10px; border-radius:6px; background:var(--panel-subtle);
+    color:var(--text-dim); border: 1px solid var(--panel-edge);
+    cursor:pointer; transition: all .15s ease;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .panel-tab.active{ background:var(--accent); color:#0a0a0d; font-weight:700; border-color:var(--accent); }
+  .panel-tab:active{ transform:scale(.95); }
+
+  .icon-btn{
+    flex-shrink:0; width:32px; height:32px; border-radius:6px;
+    background:var(--panel-subtle); border: 1px solid var(--panel-edge);
+    display:flex; align-items:center; justify-content:center;
+    color:var(--text-dim); cursor:pointer; transition: all .15s ease;
+  }
+  .icon-btn:active{ background:#191922; color:var(--accent); transform: scale(.94); }
+  .icon-btn svg{ width:15px; height:15px; }
+
+  /* ---- Toolbar do Editor ---- */
+  #editorToolbar{
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: #08080b;
+    border-bottom: 1px solid var(--panel-edge);
+    overflow-x: auto;
+    scrollbar-width: none;
+    flex-shrink: 0;
+  }
+  #editorToolbar::-webkit-scrollbar{ display: none; }
+  
+  .tool-chip{
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 9px;
+    border-radius: 6px;
+    background: #121218;
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    border: 1px solid #22222c;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all .15s ease;
+    flex-shrink: 0;
+  }
+  .tool-chip:active{ background: #1c1c26; color: var(--text); transform: scale(.95); }
+  .tool-chip.primary{
+    background: var(--accent-bg);
+    color: #c4b5fd;
+    border-color: var(--accent-dim);
+  }
+  .tool-chip.primary:active{ background: var(--accent); color: #0a0a0d; }
+  .tool-chip svg{ width: 13px; height: 13px; flex-shrink: 0; }
+  .tool-separator{ width: 1px; height: 16px; background: var(--panel-edge); margin: 0 2px; flex-shrink: 0; }
+  
+  .font-ctrls{
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    background: #121218;
+    border: 1px solid #22222c;
+    border-radius: 6px;
+    padding: 2px 4px;
+    flex-shrink: 0;
+  }
+  .font-btn{
+    padding: 3px 5px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    background: transparent;
+    color: var(--text-dim);
+    border: none;
+    cursor: pointer;
+    border-radius: 4px;
+  }
+  .font-btn:active{ background: #1e1e28; color: var(--text); }
+  .font-label{ font-family: var(--mono); font-size: 10px; color: var(--text-muted); padding: 0 2px; min-width: 24px; text-align: center; }
+
+  /* ---- Área de Edição de Código ---- */
+  #editor-wrap{
+    flex:1; min-height:0;
+    position:relative;
+    display:flex;
+    background:#07070a;
+    overflow: hidden;
+  }
+  #codeInput{
+    flex:1; width:100%; height: 100%;
+    resize:none; border:none; outline:none;
+    background:transparent; color:#e0deff;
+    font-family:var(--mono); font-size:var(--editor-font-size); line-height:1.6;
+    padding:10px 10px 10px 46px; caret-color:var(--accent);
+    white-space: pre;
+    overflow-wrap: normal;
+    overflow-x: auto;
+    overflow-y: auto;
+    user-select: text;
+    -webkit-user-select: text;
+  }
+  #lineGutter{
+    position:absolute; left:0; top:0; bottom:0; width:38px; padding:10px 0;
+    background:#060608; border-right:1px solid #181820;
+    font-family:var(--mono); font-size:var(--editor-font-size); line-height:1.6; color:#424250;
+    text-align:right; padding-right:7px; user-select:none; -webkit-user-select:none;
+    overflow:hidden; white-space:pre; pointer-events: none;
+  }
+
+  /* ---- Componente de Edição / Inspetor 3D ---- */
+  #inspector-wrap{
+    flex: 1; min-height: 0;
+    display: none; flex-direction: column;
+    background: #08080c;
+    overflow-y: auto;
+    padding: 12px;
+    gap: 14px;
+  }
+  #inspector-wrap.show{ display: flex; }
+
+  .insp-section{
+    background: #0e0e14;
+    border: 1px solid var(--panel-edge);
+    border-radius: 9px;
+    padding: 12px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .insp-title{
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 12.5px;
+    color: var(--text);
+    display: flex; align-items: center; justify-content: space-between;
+    letter-spacing: .01em;
+  }
+  .insp-title span.badge{
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--accent);
+    background: var(--accent-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  /* Lista de Peças */
+  #pieceList{
+    display: flex; flex-direction: column; gap: 5px;
+    max-height: 180px; overflow-y: auto;
+    scrollbar-width: thin;
+  }
+  .piece-item{
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 7px 10px;
+    background: #14141c;
+    border: 1px solid #20202c;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all .15s ease;
+  }
+  .piece-item:hover, .piece-item.active{
+    background: var(--accent-bg);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .piece-info{ display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .piece-color-dot{ width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.2); }
+  .piece-name{ font-family: var(--mono); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .piece-type{ font-family: var(--mono); font-size: 9.5px; color: var(--text-muted); }
+  .piece-actions{ display: flex; align-items: center; gap: 4px; }
+  .p-act-btn{
+    background: transparent; border: none; color: var(--text-dim);
+    cursor: pointer; padding: 3px; border-radius: 4px; display: flex;
+  }
+  .p-act-btn:active{ color: var(--text); }
+  .p-act-btn svg{ width: 14px; height: 14px; }
+
+  /* Controles de Transformação e Material */
+  .control-grid{
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  }
+  .control-group{
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .ctrl-label{
+    font-family: var(--mono); font-size: 10px; color: var(--text-dim);
+    display: flex; justify-content: space-between;
+  }
+  .ctrl-input{
+    width: 100%; background: #14141c; border: 1px solid #242432;
+    border-radius: 5px; color: var(--text);
+    font-family: var(--mono); font-size: 11.5px;
+    padding: 5px 7px; outline: none;
+  }
+  .ctrl-input:focus{ border-color: var(--accent); }
+  .ctrl-slider{
+    width: 100%; accent-color: var(--accent); cursor: pointer;
+  }
+
+  /* Paleta de Cores e Material */
+  .color-row{
+    display: flex; align-items: center; gap: 8px;
+  }
+  .color-picker-input{
+    width: 36px; height: 32px; border: 1px solid var(--panel-edge);
+    border-radius: 6px; background: transparent; cursor: pointer; padding: 0;
+  }
+  .palette-chips{
+    display: flex; gap: 5px; flex-wrap: wrap; flex: 1;
+  }
+  .color-chip{
+    width: 22px; height: 22px; border-radius: 4px; cursor: pointer;
+    border: 1px solid rgba(255,255,255,0.15); transition: transform .12s ease;
+  }
+  .color-chip:active{ transform: scale(1.15); }
+
+  /* ---- Componente de Clima / Céu ---- */
+  #weather-wrap{
+    flex: 1; min-height: 0;
+    display: none; flex-direction: column;
+    background: #08080c;
+    overflow-y: auto;
+    padding: 12px;
+    gap: 12px;
+  }
+  #weather-wrap.show{ display: flex; }
+
+  .weather-presets{
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+  }
+  .weather-chip{
+    padding: 8px 6px;
+    border-radius: 7px;
+    background: #13131b;
+    border: 1px solid #22222e;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 11px;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    cursor: pointer; transition: all .15s ease;
+    text-align: center;
+  }
+  .weather-chip:active{ transform: scale(.95); }
+  .weather-chip.active{
+    background: var(--accent-bg);
+    border-color: var(--accent);
+    color: #c4b5fd;
+    font-weight: 600;
+  }
+  .weather-chip span.emoji{ font-size: 16px; }
+
+  .time-slider-box{
+    display: flex; flex-direction: column; gap: 8px;
+    background: #111117; padding: 10px; border-radius: 8px;
+    border: 1px solid var(--panel-edge);
+  }
+  .time-header{
+    display: flex; align-items: center; justify-content: space-between;
+    font-family: var(--mono); font-size: 11px; color: var(--text-dim);
+  }
+  .time-val{ font-weight: 700; color: var(--gold); font-size: 13px; }
+  .time-ctrl-row{ display: flex; align-items: center; gap: 10px; }
+  .time-play-btn{
+    background: var(--panel-subtle); border: 1px solid var(--panel-edge);
+    color: var(--text); border-radius: 6px; padding: 6px 10px;
+    font-family: var(--mono); font-size: 11px; cursor: pointer;
+  }
+  .time-play-btn:active{ background: var(--accent); color: #000; }
+
+  /* ---- Chat 'code aí' ---- */
+  #chat-wrap{ flex:1; min-height:0; display:none; flex-direction:column; background: #07070a; }
+  #chat-wrap.show{ display:flex; }
+  #editor-wrap.hide{ display:none; }
+  #editorToolbar.hide{ display:none; }
+
+  #chatMessages{
+    flex:1; min-height:0; overflow-y:auto; padding:12px;
+    display:flex; flex-direction:column; gap:10px;
+    user-select: text; -webkit-user-select: text;
+  }
+  .chat-msg{ font-family:var(--mono); font-size:12px; line-height:1.55; max-width:88%; padding:9px 12px; border-radius:10px; white-space:pre-wrap; word-break:break-word; }
+  .chat-msg.user{ align-self:flex-end; background:var(--accent); color:#0a0a0d; font-weight: 500; }
+  .chat-msg.ai{ align-self:flex-start; background:#13131a; color:var(--text); border: 1px solid var(--panel-edge); }
+  .chat-msg.ai.pending{ color:var(--text-dim); }
+  .chat-msg.ai.err{ color:var(--err); }
+  .chat-msg.sys{ align-self:center; color:var(--text-dim); font-size:10.5px; opacity:.85; text-align: center; max-width: 92%; }
+
+  #chat-input-row{
+    flex-shrink:0; display:flex; gap:8px; padding:8px 12px;
+    border-top:1px solid var(--panel-edge); align-items:flex-end;
+    background: var(--panel);
+  }
+  #chatImagePreview{
+    flex-shrink:0; display:none; gap:6px; padding:6px 12px 0 12px; overflow-x:auto;
+  }
+  #chatImagePreview.show{ display:flex; }
+  .chat-img-thumb{ position:relative; flex-shrink:0; width:46px; height:46px; border-radius:7px; overflow:hidden; border: 1px solid var(--panel-edge); }
+  .chat-img-thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .chat-img-thumb .rm{
+    position:absolute; top:2px; right:2px; width:16px; height:16px; border-radius:50%;
+    background:rgba(5,5,7,.85); color:var(--text); font-size:11px; line-height:16px;
+    text-align:center; padding:0; border: none; cursor: pointer;
+  }
+  .chat-msg-images{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; }
+  .chat-msg-images img{ width:56px; height:56px; object-fit:cover; border-radius:7px; }
+
+  #chatImageBtn{
+    flex-shrink:0; width:38px; height:38px; border-radius:7px; background:var(--panel-subtle);
+    color:var(--text-dim); border: 1px solid var(--panel-edge);
+    display:flex; align-items:center; justify-content:center; cursor: pointer;
+  }
+  #chatImageBtn:active{ background:#191922; color:var(--accent); }
+  #chatImageBtn svg{ width:17px; height:17px; }
+
+  #chatInput{
+    flex:1; resize:none; border:none; outline:none; border-radius:7px;
+    background:#07070a; color:var(--text); border: 1px solid var(--panel-edge);
+    font-family:var(--sans); font-size:14px; padding:8px 11px; max-height:80px;
+    user-select: text; -webkit-user-select: text;
+  }
+  #chatSendBtn{
+    flex-shrink:0; width:38px; height:38px; border-radius:7px; background:var(--accent); color:#0a0a0d;
+    display:flex; align-items:center; justify-content:center; cursor: pointer; border: none;
+  }
+  #chatSendBtn:active{ transform:scale(.94); }
+  #chatSendBtn svg{ width:16px; height:16px; }
+  #chatSendBtn:disabled{ opacity:.4; }
+
+  /* ---- Status & Rodapé ---- */
+  #status{
+    font-family:var(--mono); font-size:11px; padding:7px 12px;
+    border-top:1px solid var(--panel-edge); color:var(--text-dim);
+    min-height:16px; white-space:pre-wrap; word-break:break-word;
+    flex-shrink:0; max-height:50px; overflow-y:auto;
+    background: #08080a;
+  }
+  #status.err{ color:var(--err); }
+  #status.ok{ color:var(--ok); }
+  #status.hide, #footer.hide{ display:none; }
+
+  #footer{
+    padding:8px 12px; border-top:1px solid var(--panel-edge);
+    display:flex; gap:8px; flex-shrink:0;
+    background: var(--panel);
+  }
+  button{ font-family:var(--sans); font-weight:600; font-size:13px; letter-spacing:.02em; border:none; border-radius:7px; cursor:pointer; }
+  #startBtn{
+    flex:1; padding:10px 12px; background:var(--accent); color:#0a0a0d;
+    box-shadow:0 0 0 1px var(--accent-dim);
+    transition:transform .12s ease, background .15s ease;
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+  }
+  #startBtn:active{ transform:scale(.97); background: var(--accent-hover); }
+  #startBtn svg{ width: 15px; height: 15px; }
+  #resetBtn{ padding:10px 12px; background:var(--panel-subtle); color:var(--text-dim); border: 1px solid var(--panel-edge); }
+  #resetBtn:active{ background:#191922; color: var(--text); }
+
+  /* ---- Toast Notification ---- */
+  #toast{
+    position: fixed;
+    bottom: 68px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: #1e1e28;
+    color: var(--text);
+    padding: 7px 15px;
+    border-radius: 20px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    border: 1px solid #333344;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity .25s ease, transform .25s ease;
+    z-index: 100;
+    white-space: nowrap;
+  }
+  #toast.show{ opacity: 1; transform: translateX(-50%) translateY(0); }
+  #toast.ok{ border-color: var(--ok); color: var(--ok); }
+  #toast.err{ border-color: var(--err); color: var(--err); }
+
+  /* ---- Otimizações para Celular / Teclado Aberto ---- */
+  @media (max-width: 800px) and (orientation: portrait), (max-width: 720px){
+    #app{ flex-direction:column; }
+    #viewport{ width:100%!important; height:34vh; border-right:none; border-bottom:1px solid var(--panel-edge); }
+    #panel{ width:100%!important; height:66vh; }
+    #app.fullscreen #viewport{ height:100%!important; }
+    #app.fullscreen #panel{ height:0; }
+    .panel-sub{ display:none; }
+    .weather-presets{ grid-template-columns: repeat(4, 1fr); }
+  }
+
+  @media (max-height: 520px){
+    .panel-sub{ display:none; }
+    .panel-header{ padding: 5px 8px; }
+    #editorToolbar{ padding: 4px 6px; }
+    #footer{ padding: 5px 8px; }
+    #startBtn, #resetBtn{ padding: 7px 8px; }
+  }
+
+  #app.editor-focused .panel-sub, #app.keyboard-open .panel-sub{ display: none; }
+  #app.editor-focused .panel-eyebrow, #app.keyboard-open .panel-eyebrow{ display: none; }
+
+  /* ---- Overlay de Geração 3D ---- */
+  #genTop{
+    position:fixed; top:0; left:0; right:0;
+    padding:calc(10px + var(--safe-top)) 14px 10px 14px;
+    background:linear-gradient(180deg, rgba(5,5,7,.94) 0%, rgba(5,5,7,.6) 75%, transparent 100%);
+    z-index:10;
+    opacity:0; pointer-events:none;
+    transform:translateY(-8px);
+    transition:opacity .3s ease, transform .3s ease;
+  }
+  #app.fullscreen #genTop{ opacity:1; pointer-events:auto; transform:translateY(0); }
+
+  .gen-row{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
+  .gen-label{ font-family:var(--sans); font-weight:700; font-size:13.5px; color:var(--text); }
+  .gen-timer{ font-family:var(--mono); font-size:13px; color:var(--accent); font-variant-numeric:tabular-nums; font-weight: 600; }
+  .gen-cancel{ font-family:var(--mono); font-size:11px; color:var(--text-dim); background:none; box-shadow:none; padding:4px 8px; border-radius: 4px; text-decoration:underline; text-underline-offset:2px; }
+  .gen-cancel:active{ color: var(--err); }
+
+  .gen-bar-track{ margin-top:6px; height:3px; border-radius:2px; background:#1c1c22; overflow:hidden; position:relative; }
+  .gen-bar-fill{ position:absolute; top:0; left:0; height:100%; width:0%; background:var(--accent); }
+  .gen-bar-fill.indeterminate{ width:35%; animation:indet 1.1s ease-in-out infinite; }
+  @keyframes indet{ 0%{ left:-35%; } 100%{ left:100%; } }
+
+  #genLog{ margin-top:6px; display:flex; flex-direction:column; gap:3px; min-height:46px; }
+  .gen-log-line{
+    font-family:var(--mono); font-size:10.5px; color:var(--text-dim);
+    opacity:0; transform:translateY(4px);
+    animation:logIn .35s ease forwards;
+  }
+  .gen-log-line b{ color:#c9c3ff; font-weight:600; }
+  @keyframes logIn{ to{ opacity:1; transform:translateY(0); } }
+
+  /* ---- Barra Inferior de Conclusão ---- */
+  #genBottom{
+    position:fixed; left:0; right:0; bottom:0;
+    padding:12px 14px calc(14px + var(--safe-bottom)) 14px;
+    background:linear-gradient(0deg, rgba(5,5,7,.96) 0%, rgba(5,5,7,.65) 80%, transparent 100%);
+    z-index:10;
+    display:flex; flex-direction:column; gap:8px;
+    opacity:0; pointer-events:none; transform:translateY(8px);
+    transition:opacity .3s ease, transform .3s ease;
+  }
+  #genBottom.show{ opacity:1; pointer-events:auto; transform:translateY(0); }
+  .gen-done-label{ font-family:var(--mono); font-size:11.5px; color:var(--ok); display:flex; align-items:center; gap:6px; font-weight: 600; }
+  .gen-done-row{ display:flex; gap:8px; }
+  #downloadBtn{
+    flex:1; padding:11px 10px; background:var(--accent); color:#0a0a0d;
+    box-shadow:0 0 0 1px var(--accent-dim);
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+  }
+  #downloadBtn:active{ transform:scale(.97); }
+  #downloadBtn svg{ width: 15px; height: 15px; }
+  #editAgainBtn{ padding:11px 13px; background:var(--panel-subtle); color:var(--text-dim); border: 1px solid var(--panel-edge); }
+  #editAgainBtn:active{ background:#191922; color: var(--text); }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- Viewport 3D -->
+  <div id="viewport">
+    <div class="viewport-badge"><span class="dot" id="liveDot"></span><span id="liveLabel">vazio</span></div>
+    
+    <!-- Botões Flutuantes no Viewport 3D -->
+    <div class="viewport-controls-top">
+      <button class="vp-btn" id="vpWeatherBtn" title="Ajustar Clima / Dia / Noite">
+        <span id="vpWeatherIcon">☀️</span>
+        <span id="vpWeatherTime">12:00</span>
+      </button>
+      <button class="vp-btn" id="vpInspectBtn" title="Abrir Inspetor de Peças">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+        <span>Edição</span>
+      </button>
+    </div>
+
+    <div class="viewport-hint">arraste para girar · toque nas peças para inspecionar</div>
+  </div>
+
+  <!-- Painel Principal -->
+  <div id="panel">
+    <div class="panel-header">
+      <div class="panel-header-left">
+        <div class="panel-eyebrow">Gerador de Modelos · Three.js Studio</div>
+        <div class="panel-title" id="panelTitleText">Código do Modelo 3D</div>
+        <div class="panel-sub">Cole ou envie o código. O Three.js monta o objeto em <b>group</b>.</div>
+      </div>
+      <div id="panelTabs">
+        <button class="panel-tab active" id="tabEditorBtn">Editor</button>
+        <button class="panel-tab" id="tabInspectorBtn">Edição 3D</button>
+        <button class="panel-tab" id="tabWeatherBtn">Clima ☀️</button>
+        <button class="panel-tab" id="tabChatBtn">code aí</button>
+        <button class="icon-btn" id="fsToggleBtn" title="Alternar tela cheia">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+          </svg>
+        </button>
+        <button class="icon-btn" id="manualBtn" title="Baixar manual.txt para enviar à IA">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Toolbar do Editor -->
+    <div id="editorToolbar">
+      <input type="file" id="codeFileInput" accept=".js,.txt,.json,text/*,*/*" style="display:none" />
+      
+      <button class="tool-chip primary" id="uploadFileBtn" title="Carregar arquivo .js ou .txt sem limite de caracteres">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        <span>Upload Arquivo</span>
+      </button>
+
+      <button class="tool-chip" id="pasteBtn" title="Colar código da área de transferência">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+        </svg>
+        <span>Colar</span>
+      </button>
+
+      <button class="tool-chip" id="toggleFocusBtn" title="Maximizar editor / Ocultar preview para ganhar espaço">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
+        </svg>
+        <span id="focusBtnLabel">Maximizar</span>
+      </button>
+
+      <div class="tool-separator"></div>
+
+      <div class="font-ctrls" title="Ajustar tamanho da fonte do código">
+        <button class="font-btn" id="fontDecBtn">A−</button>
+        <span class="font-label" id="fontLabel">13px</span>
+        <button class="font-btn" id="fontIncBtn">A+</button>
+      </div>
+
+      <button class="tool-chip" id="exportJsBtn" title="Salvar código como arquivo .js">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+        </svg>
+        <span>Salvar .js</span>
+      </button>
+
+      <button class="tool-chip" id="clearCodeBtn" title="Limpar todo o código do editor">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+        </svg>
+        <span>Limpar</span>
+      </button>
+    </div>
+
+    <!-- Área de Edição com Gutter de Linhas -->
+    <div id="editor-wrap">
+      <div id="lineGutter"></div>
+      <textarea id="codeInput" spellcheck="false" autocapitalize="off" autocorrect="off" placeholder="// Cole seu código Three.js aqui ou use o botão 'Upload Arquivo'"></textarea>
+    </div>
+
+    <!-- COMPONENTE DE EDIÇÃO / INSPETOR 3D -->
+    <div id="inspector-wrap">
+      <!-- Árvore de Peças -->
+      <div class="insp-section">
+        <div class="insp-title">
+          <span>Árvore de Peças do Modelo</span>
+          <span class="badge" id="pieceCountBadge">0 peças</span>
+        </div>
+        <div id="pieceList">
+          <div style="font-family:var(--mono); font-size:11px; color:var(--text-dim); text-align:center; padding:12px;">
+            Nenhum modelo gerado ainda. Gere um modelo para inspecionar e editar suas peças.
+          </div>
+        </div>
+      </div>
+
+      <!-- Detalhes e Transformações da Peça Selecionada -->
+      <div class="insp-section" id="pieceInspectorDetails" style="display:none;">
+        <div class="insp-title">
+          <span id="selectedPieceTitle">Peça Selecionada</span>
+          <div style="display:flex; gap:6px;">
+            <button class="tool-chip" id="inspFocusBtn" title="Focar Câmera">🔍 Focar</button>
+            <button class="tool-chip" id="inspDupBtn" title="Duplicar Peça">📋 Clonar</button>
+            <button class="tool-chip" id="inspDelBtn" title="Excluir Peça" style="color:var(--err);">🗑️</button>
+          </div>
+        </div>
+
+        <!-- Transformações: Posição -->
+        <div>
+          <div class="ctrl-label" style="margin-bottom:4px;"><b>Posição (X, Y, Z)</b></div>
+          <div class="control-grid">
+            <div class="control-group">
+              <span class="ctrl-label">X: <span id="posXVal">0</span></span>
+              <input type="range" class="ctrl-slider" id="posXSlider" min="-5" max="5" step="0.05" value="0">
+            </div>
+            <div class="control-group">
+              <span class="ctrl-label">Y: <span id="posYVal">0</span></span>
+              <input type="range" class="ctrl-slider" id="posYSlider" min="-5" max="5" step="0.05" value="0">
+            </div>
+            <div class="control-group">
+              <span class="ctrl-label">Z: <span id="posZVal">0</span></span>
+              <input type="range" class="ctrl-slider" id="posZSlider" min="-5" max="5" step="0.05" value="0">
+            </div>
+          </div>
+        </div>
+
+        <!-- Transformações: Rotação -->
+        <div>
+          <div class="ctrl-label" style="margin-bottom:4px;"><b>Rotação (Graus)</b></div>
+          <div class="control-grid">
+            <div class="control-group">
+              <span class="ctrl-label">Rot X: <span id="rotXVal">0°</span></span>
+              <input type="range" class="ctrl-slider" id="rotXSlider" min="-180" max="180" step="1" value="0">
+            </div>
+            <div class="control-group">
+              <span class="ctrl-label">Rot Y: <span id="rotYVal">0°</span></span>
+              <input type="range" class="ctrl-slider" id="rotYSlider" min="-180" max="180" step="1" value="0">
+            </div>
+            <div class="control-group">
+              <span class="ctrl-label">Rot Z: <span id="rotZVal">0°</span></span>
+              <input type="range" class="ctrl-slider" id="rotZSlider" min="-180" max="180" step="1" value="0">
+            </div>
+          </div>
+        </div>
+
+        <!-- Transformações: Escala -->
+        <div>
+          <div class="ctrl-label" style="margin-bottom:4px;">
+            <b>Escala</b>
+            <label style="display:inline-flex; align-items:center; gap:4px; font-size:10px; cursor:pointer;">
+              <input type="checkbox" id="scaleUniformCheck" checked> Proporcional
+            </label>
+          </div>
+          <div class="control-grid">
+            <div class="control-group">
+              <span class="ctrl-label">Escala X: <span id="scaleXVal">1</span></span>
+              <input type="range" class="ctrl-slider" id="scaleXSlider" min="0.1" max="4" step="0.05" value="1">
+            </div>
+            <div class="control-group">
+              <span class="ctrl-label">Escala Y: <span id="scaleYVal">1</span></span>
+              <input type="range" class="ctrl-slider" id="scaleYSlider" min="0.1" max="4" step="0.05" value="1">
+            </div>
+            <div class="control-group">
+              <span class="ctrl-label">Escala Z: <span id="scaleZVal">1</span></span>
+              <input type="range" class="ctrl-slider" id="scaleZSlider" min="0.1" max="4" step="0.05" value="1">
+            </div>
+          </div>
+        </div>
+
+        <!-- Material PBR -->
+        <div>
+          <div class="ctrl-label" style="margin-bottom:6px;"><b>Material & Cores PBR</b></div>
+          <div class="color-row">
+            <input type="color" id="matColorPicker" class="color-picker-input" value="#7c5cff" title="Cor Base">
+            <div class="palette-chips">
+              <div class="color-chip" style="background:#7c5cff;" data-color="#7c5cff"></div>
+              <div class="color-chip" style="background:#ef4444;" data-color="#ef4444"></div>
+              <div class="color-chip" style="background:#3b82f6;" data-color="#3b82f6"></div>
+              <div class="color-chip" style="background:#10b981;" data-color="#10b981"></div>
+              <div class="color-chip" style="background:#f59e0b;" data-color="#f59e0b"></div>
+              <div class="color-chip" style="background:#ec4899;" data-color="#ec4899"></div>
+              <div class="color-chip" style="background:#e2e8f0;" data-color="#e2e8f0"></div>
+              <div class="color-chip" style="background:#1e293b;" data-color="#1e293b"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Propriedades de Superfície PBR -->
+        <div class="control-grid">
+          <div class="control-group">
+            <span class="ctrl-label">Metalicidade: <span id="matMetalVal">0.3</span></span>
+            <input type="range" class="ctrl-slider" id="matMetalSlider" min="0" max="1" step="0.05" value="0.3">
+          </div>
+          <div class="control-group">
+            <span class="ctrl-label">Rugosidade: <span id="matRoughVal">0.4</span></span>
+            <input type="range" class="ctrl-slider" id="matRoughSlider" min="0" max="1" step="0.05" value="0.4">
+          </div>
+          <div class="control-group">
+            <span class="ctrl-label">Opacidade: <span id="matOpacityVal">1.0</span></span>
+            <input type="range" class="ctrl-slider" id="matOpacitySlider" min="0.1" max="1" step="0.05" value="1.0">
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; padding-top:4px;">
+          <div class="control-group" style="flex:1; margin-right:12px;">
+            <span class="ctrl-label">Brilho Emissivo (Glow): <span id="matEmissiveVal">0.0</span></span>
+            <input type="range" class="ctrl-slider" id="matEmissiveSlider" min="0" max="3" step="0.1" value="0">
+          </div>
+          <label style="display:inline-flex; align-items:center; gap:5px; font-family:var(--mono); font-size:11px; color:var(--text-dim); cursor:pointer;">
+            <input type="checkbox" id="matWireframeCheck"> Wireframe
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- COMPONENTE DE CLIMA E CÉU REALISTA -->
+    <div id="weather-wrap">
+      <!-- Ciclo 24 Horas -->
+      <div class="time-slider-box">
+        <div class="time-header">
+          <span>Ciclo Dia & Noite</span>
+          <span class="time-val" id="timeDisplayVal">12:00 (Dia)</span>
+        </div>
+        <div class="time-ctrl-row">
+          <button class="time-play-btn" id="timePlayToggleBtn">▶ Automático</button>
+          <input type="range" class="ctrl-slider" id="timeOfDaySlider" min="0" max="24" step="0.1" value="12" style="flex:1;">
+        </div>
+      </div>
+
+      <!-- Presets de Clima Realista -->
+      <div class="insp-section">
+        <div class="insp-title">
+          <span>Condições Climáticas & Atmosfera</span>
+          <span class="badge" id="currentWeatherBadge">Ensolarado</span>
+        </div>
+        <div class="weather-presets">
+          <button class="weather-chip active" data-weather="sunny">
+            <span class="emoji">☀️</span>
+            <span>Dia</span>
+          </button>
+          <button class="weather-chip" data-weather="sunset">
+            <span class="emoji">🌅</span>
+            <span>Pôr do Sol</span>
+          </button>
+          <button class="weather-chip" data-weather="night">
+            <span class="emoji">🌙</span>
+            <span>Noite</span>
+          </button>
+          <button class="weather-chip" data-weather="cloudy">
+            <span class="emoji">⛅</span>
+            <span>Nublado</span>
+          </button>
+          <button class="weather-chip" data-weather="rain">
+            <span class="emoji">🌧️</span>
+            <span>Chuva</span>
+          </button>
+          <button class="weather-chip" data-weather="storm">
+            <span class="emoji">⛈️</span>
+            <span>Tempestade</span>
+          </button>
+          <button class="weather-chip" data-weather="snow">
+            <span class="emoji">❄️</span>
+            <span>Neve</span>
+          </button>
+          <button class="weather-chip" data-weather="fog">
+            <span class="emoji">🌫️</span>
+            <span>Névoa</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Efeitos e Iluminação Avançada -->
+      <div class="insp-section">
+        <div class="insp-title"><span>Motor Gráfico Three.js (Máxima Fidelidade)</span></div>
+        <div style="display:flex; flex-direction:column; gap:8px; font-family:var(--mono); font-size:11px; color:var(--text-dim);">
+          <label style="display:flex; align-items:center; justify-content:space-between; cursor:pointer;">
+            <span>Sombras Suaves em Tempo Real (PCF Soft Shadows)</span>
+            <input type="checkbox" id="toggleShadowsCheck" checked>
+          </label>
+          <label style="display:flex; align-items:center; justify-content:space-between; cursor:pointer;">
+            <span>Reflexos e Domo Estrelado Dinâmico</span>
+            <input type="checkbox" id="toggleStarsCheck" checked>
+          </label>
+          <label style="display:flex; align-items:center; justify-content:space-between; cursor:pointer;">
+            <span>Grade e Chão Reflexivo de Referência</span>
+            <input type="checkbox" id="toggleGridCheck" checked>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat 'code aí' -->
+    <div id="chat-wrap">
+      <div id="chatMessages">
+        <div class="chat-msg sys">code aí sabe as regras do manual.txt — descreva o objeto 3D e o código será colocado diretamente no editor.</div>
+      </div>
+      <div id="chatImagePreview"></div>
+      <div id="chat-input-row">
+        <input type="file" id="chatImageInput" accept="image/*" multiple style="display:none">
+        <button id="chatImageBtn" title="Enviar imagem de referência">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>
+          </svg>
+        </button>
+        <textarea id="chatInput" rows="1" placeholder="descreva o modelo 3D..."></textarea>
+        <button id="chatSendBtn" title="Enviar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7Z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Status do Editor -->
+    <div id="status">pronto. cole/carregue um código e toque em Começar.</div>
+
+    <!-- Rodapé de Ações -->
+    <div id="footer">
+      <button id="resetBtn" title="Limpar modelo 3D">↺</button>
+      <button id="startBtn">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <polygon points="5 3 19 12 5 21 5 3"/>
+        </svg>
+        <span>Começar</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Overlay: Topo do Render (Cronômetro + Logs de Peças) -->
+  <div id="genTop">
+    <div class="gen-row">
+      <span class="gen-label" id="genLabel">Gerando modelo…</span>
+      <span class="gen-timer" id="genTimer">00:00</span>
+    </div>
+    <div class="gen-bar-track"><div class="gen-bar-fill indeterminate" id="genBarFill"></div></div>
+    <div id="genLog"></div>
+    <button class="gen-cancel" id="cancelBtn">cancelar</button>
+  </div>
+
+  <!-- Overlay: Rodapé de Conclusão e Download .glb -->
+  <div id="genBottom">
+    <div class="gen-done-label" id="genDoneLabel">— modelo.glb pronto</div>
+    <div class="gen-done-row">
+      <button id="editAgainBtn">Editar novamente</button>
+      <button id="downloadBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        <span>Baixar .glb</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Toast Notification Overlay -->
+  <div id="toast"></div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+
+const appEl = document.getElementById('app');
+const viewportEl = document.getElementById('viewport');
+const codeInput = document.getElementById('codeInput');
+const gutter = document.getElementById('lineGutter');
+const statusEl = document.getElementById('status');
+const startBtn = document.getElementById('startBtn');
+const resetBtn = document.getElementById('resetBtn');
+const manualBtn = document.getElementById('manualBtn');
+const liveDot = document.getElementById('liveDot');
+const liveLabel = document.getElementById('liveLabel');
+const fsToggleBtn = document.getElementById('fsToggleBtn');
+const toastEl = document.getElementById('toast');
+const panelTitleText = document.getElementById('panelTitleText');
+
+// Toolbar buttons
+const codeFileInput = document.getElementById('codeFileInput');
+const uploadFileBtn = document.getElementById('uploadFileBtn');
+const pasteBtn = document.getElementById('pasteBtn');
+const toggleFocusBtn = document.getElementById('toggleFocusBtn');
+const focusBtnLabel = document.getElementById('focusBtnLabel');
+const fontDecBtn = document.getElementById('fontDecBtn');
+const fontIncBtn = document.getElementById('fontIncBtn');
+const fontLabel = document.getElementById('fontLabel');
+const exportJsBtn = document.getElementById('exportJsBtn');
+const clearCodeBtn = document.getElementById('clearCodeBtn');
+const editorToolbar = document.getElementById('editorToolbar');
+
+// Viewport floating buttons
+const vpWeatherBtn = document.getElementById('vpWeatherBtn');
+const vpWeatherIcon = document.getElementById('vpWeatherIcon');
+const vpWeatherTime = document.getElementById('vpWeatherTime');
+const vpInspectBtn = document.getElementById('vpInspectBtn');
+
+// Overlays
+const genTop = document.getElementById('genTop');
+const genTimer = document.getElementById('genTimer');
+const genBarFill = document.getElementById('genBarFill');
+const genLog = document.getElementById('genLog');
+const genLabel = document.getElementById('genLabel');
+const cancelBtn = document.getElementById('cancelBtn');
+const genBottom = document.getElementById('genBottom');
+const genDoneLabel = document.getElementById('genDoneLabel');
+const editAgainBtn = document.getElementById('editAgainBtn');
+const downloadBtn = document.getElementById('downloadBtn');
+
+// Tabs
+const tabEditorBtn = document.getElementById('tabEditorBtn');
+const tabInspectorBtn = document.getElementById('tabInspectorBtn');
+const tabWeatherBtn = document.getElementById('tabWeatherBtn');
+const tabChatBtn = document.getElementById('tabChatBtn');
+const editorWrap = document.getElementById('editor-wrap');
+const inspectorWrap = document.getElementById('inspector-wrap');
+const weatherWrap = document.getElementById('weather-wrap');
+const chatWrap = document.getElementById('chat-wrap');
+const footerEl = document.getElementById('footer');
+
+// Inspector Elements
+const pieceListEl = document.getElementById('pieceList');
+const pieceCountBadge = document.getElementById('pieceCountBadge');
+const pieceInspectorDetails = document.getElementById('pieceInspectorDetails');
+const selectedPieceTitle = document.getElementById('selectedPieceTitle');
+const inspFocusBtn = document.getElementById('inspFocusBtn');
+const inspDupBtn = document.getElementById('inspDupBtn');
+const inspDelBtn = document.getElementById('inspDelBtn');
+
+const posXSlider = document.getElementById('posXSlider');
+const posYSlider = document.getElementById('posYSlider');
+const posZSlider = document.getElementById('posZSlider');
+const posXVal = document.getElementById('posXVal');
+const posYVal = document.getElementById('posYVal');
+const posZVal = document.getElementById('posZVal');
+
+const rotXSlider = document.getElementById('rotXSlider');
+const rotYSlider = document.getElementById('rotYSlider');
+const rotZSlider = document.getElementById('rotZSlider');
+const rotXVal = document.getElementById('rotXVal');
+const rotYVal = document.getElementById('rotYVal');
+const rotZVal = document.getElementById('rotZVal');
+
+const scaleXSlider = document.getElementById('scaleXSlider');
+const scaleYSlider = document.getElementById('scaleYSlider');
+const scaleZSlider = document.getElementById('scaleZSlider');
+const scaleXVal = document.getElementById('scaleXVal');
+const scaleYVal = document.getElementById('scaleYVal');
+const scaleZVal = document.getElementById('scaleZVal');
+const scaleUniformCheck = document.getElementById('scaleUniformCheck');
+
+const matColorPicker = document.getElementById('matColorPicker');
+const matMetalSlider = document.getElementById('matMetalSlider');
+const matMetalVal = document.getElementById('matMetalVal');
+const matRoughSlider = document.getElementById('matRoughSlider');
+const matRoughVal = document.getElementById('matRoughVal');
+const matOpacitySlider = document.getElementById('matOpacitySlider');
+const matOpacityVal = document.getElementById('matOpacityVal');
+const matEmissiveSlider = document.getElementById('matEmissiveSlider');
+const matEmissiveVal = document.getElementById('matEmissiveVal');
+const matWireframeCheck = document.getElementById('matWireframeCheck');
+
+// Weather Elements
+const timeOfDaySlider = document.getElementById('timeOfDaySlider');
+const timeDisplayVal = document.getElementById('timeDisplayVal');
+const timePlayToggleBtn = document.getElementById('timePlayToggleBtn');
+const currentWeatherBadge = document.getElementById('currentWeatherBadge');
+const weatherChips = document.querySelectorAll('.weather-chip');
+const toggleShadowsCheck = document.getElementById('toggleShadowsCheck');
+const toggleStarsCheck = document.getElementById('toggleStarsCheck');
+const toggleGridCheck = document.getElementById('toggleGridCheck');
+
+// Toast Feedback Helper
+let toastTimeout = null;
+function showToast(message, type = 'info') {
+  if (!toastEl) return;
+  toastEl.textContent = message;
+  toastEl.className = 'show ' + (type === 'ok' ? 'ok' : type === 'err' ? 'err' : '');
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => {
+    toastEl.className = '';
+  }, 2600);
+}
+
+// Fullscreen Helper
+function toggleAppFullscreen() {
+  try {
+    if (!document.fullscreenElement) {
+      if (document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen();
+      } else if (document.documentElement.webkitRequestFullscreen) {
+        document.documentElement.webkitRequestFullscreen();
+      }
+      showToast('Tela cheia ativada', 'ok');
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+      showToast('Tela cheia desativada');
+    }
+  } catch (e) {}
+}
+fsToggleBtn?.addEventListener('click', toggleAppFullscreen);
+
+// Trigger fullscreen on first user touch
+let userInteracted = false;
+window.addEventListener('touchstart', () => {
+  if (!userInteracted) {
+    userInteracted = true;
+    if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    }
+  }
+}, { once: true, passive: true });
+
+// Font Size Controls
+let currentFontSize = parseInt(localStorage.getItem('editor_font_size') || '13', 10);
+if (isNaN(currentFontSize) || currentFontSize < 10 || currentFontSize > 22) currentFontSize = 13;
+
+function setEditorFontSize(size) {
+  currentFontSize = Math.max(10, Math.min(22, size));
+  document.documentElement.style.setProperty('--editor-font-size', currentFontSize + 'px');
+  fontLabel.textContent = currentFontSize + 'px';
+  localStorage.setItem('editor_font_size', currentFontSize);
+  refreshGutter();
+}
+fontDecBtn?.addEventListener('click', () => setEditorFontSize(currentFontSize - 1));
+fontIncBtn?.addEventListener('click', () => setEditorFontSize(currentFontSize + 1));
+setEditorFontSize(currentFontSize);
+
+// Toggle Focus / Maximize Editor Mode
+let isEditorMaximized = false;
+function toggleEditorMaximize(force) {
+  isEditorMaximized = typeof force === 'boolean' ? force : !isEditorMaximized;
+  appEl.classList.toggle('preview-collapsed', isEditorMaximized);
+  toggleFocusBtn.classList.toggle('primary', isEditorMaximized);
+  focusBtnLabel.textContent = isEditorMaximized ? 'Dividir' : 'Maximizar';
+  setTimeout(() => {
+    resize();
+    refreshGutter();
+  }, 360);
+  showToast(isEditorMaximized ? 'Editor maximizado (foco total)' : 'Modo dividido');
+}
+toggleFocusBtn?.addEventListener('click', () => toggleEditorMaximize());
+
+// Mobile Virtual Keyboard & Focus Handling
+codeInput.addEventListener('focus', () => {
+  appEl.classList.add('editor-focused');
+});
+codeInput.addEventListener('blur', () => {
+  appEl.classList.remove('editor-focused');
+});
+
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', () => {
+    const isKeyboard = window.visualViewport.height < window.innerHeight * 0.75;
+    appEl.classList.toggle('keyboard-open', isKeyboard);
+    resize();
+  });
+}
+
+// File Upload Feature (No Clipboard Limit!)
+uploadFileBtn?.addEventListener('click', () => codeFileInput.click());
+codeFileInput?.addEventListener('change', (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  loadCodeFromFile(file);
+  codeFileInput.value = '';
+});
+
+function loadCodeFromFile(file) {
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    let content = ev.target.result || '';
+    content = content.trim().replace(/^```(?:javascript|js)?\r?\n?/i, '').replace(/\r?\n?```$/i, '').trim();
+    if (!content) {
+      showToast('O arquivo selecionado está vazio.', 'err');
+      return;
+    }
+    codeInput.value = content;
+    refreshGutter();
+    showTab('editor');
+    const lines = content.split('\n').length;
+    const kb = (file.size / 1024).toFixed(1);
+    showToast(`✓ "${file.name}" carregado (${lines} linhas, ${kb} KB)`, 'ok');
+    showStatus(`Arquivo "${file.name}" carregado com sucesso (${lines} linhas). Toque em Começar.`, 'ok');
+  };
+  reader.onerror = () => {
+    showToast('Erro ao ler o arquivo selecionado.', 'err');
+  };
+  reader.readAsText(file, 'utf-8');
+}
+
+// Drag & Drop
+window.addEventListener('dragover', (e) => { e.preventDefault(); });
+window.addEventListener('drop', (e) => {
+  e.preventDefault();
+  const file = e.dataTransfer?.files?.[0];
+  if (file && (file.name.endsWith('.js') || file.name.endsWith('.txt') || file.type.includes('text') || file.type.includes('javascript'))) {
+    loadCodeFromFile(file);
+  }
+});
+
+// Paste Button
+pasteBtn?.addEventListener('click', async () => {
+  try {
+    if (navigator.clipboard && navigator.clipboard.readText) {
+      const text = await navigator.clipboard.readText();
+      if (text && text.trim()) {
+        let clean = text.trim().replace(/^```(?:javascript|js)?\r?\n?/i, '').replace(/\r?\n?```$/i, '').trim();
+        codeInput.value = clean;
+        refreshGutter();
+        showToast('Código colado com sucesso!', 'ok');
+        showStatus('Código colado. Toque em Começar.', 'ok');
+        return;
+      }
+    }
+    codeInput.focus();
+    showToast('Pressione e segure na caixa de texto para colar.');
+  } catch (err) {
+    codeInput.focus();
+    showToast('Pressione e segure na caixa para colar.');
+  }
+});
+
+// Export Current Code
+exportJsBtn?.addEventListener('click', () => {
+  const code = codeInput.value;
+  if (!code || !code.trim()) {
+    showToast('Nenhum código para exportar.', 'err');
+    return;
+  }
+  const blob = new Blob([code], { type: 'text/javascript;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'modelo.js';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('✓ Arquivo modelo.js baixado!', 'ok');
+});
+
+// Clear Code Button
+clearCodeBtn?.addEventListener('click', () => {
+  if (codeInput.value && confirm('Deseja limpar todo o código do editor?')) {
+    codeInput.value = '';
+    refreshGutter();
+    showToast('Editor limpo');
+    showStatus('Editor limpo. Cole ou envie um código.', '');
+  }
+});
+
+// Default Starter Code
+const DEFAULT_CODE =
+`// exemplo — substitua pelo código gerado pela IA (leia o manual.txt)
+const topGeo = new THREE.CylinderGeometry(0.9, 0.9, 0.12, 32);
+const topMat = new THREE.MeshStandardMaterial({ color: 0x7c5cff, roughness: 0.3, metalness: 0.3 });
+const top = new THREE.Mesh(topGeo, topMat);
+top.name = "tampo";
+top.position.y = 0.9;
+group.add(top);
+await sleep(400);
+
+const legMat = new THREE.MeshStandardMaterial({ color: 0x2a2a35, roughness: 0.6 });
+const legGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.9, 16);
+const positions = [[0.6,0.6],[-0.6,0.6],[0.6,-0.6],[-0.6,-0.6]];
+for (const [x, z] of positions) {
+  const leg = new THREE.Mesh(legGeo, legMat);
+  leg.name = "perna";
+  leg.position.set(x, 0.45, z);
+  group.add(leg);
+  await sleep(300);
+}`;
+codeInput.value = DEFAULT_CODE;
+
+const MANUAL_TEXT = `MANUAL — Geração de modelos 3D em JavaScript (Three.js)
+=========================================================
+
+Este arquivo é o manual de instruções para uma IA (Gemini, GPT, etc.)
+gerar código JavaScript compatível com este editor 3D em tempo real.
+
+CONTEXTO DE EXECUÇÃO
+---------------------
+O código colado é executado como o CORPO de uma função assíncrona.
+Você pode usar "await" livremente. NÃO use import/export e NÃO
+declare a função em si — escreva apenas o corpo do código.
+
+VARIÁVEIS DISPONÍVEIS (já existem, não declare de novo):
+- group     -> THREE.Group onde as peças do modelo devem ser adicionadas
+- THREE     -> biblioteca Three.js completa (r160)
+- scene     -> a cena 3D (normalmente não precisa mexer nela)
+- camera    -> câmera perspectiva atual
+- renderer  -> o WebGLRenderer atual
+- clock     -> THREE.Clock em execução
+- sleep(ms) -> função assíncrona; "await sleep(500)" pausa por N ms
+
+COMO FUNCIONA A GERAÇÃO EM TEMPO REAL (não é simulação)
+----------------------------------------------------------
+Cada chamada a "group.add(objeto3d)" aparece IMEDIATAMENTE na tela,
+com uma animação de entrada e um registro no log. O cronômetro
+mostrado é o tempo real de execução do seu código, contando pra
+frente enquanto ele roda.
+
+Para dar ritmo à geração (como se o modelo estivesse sendo
+construído peça por peça), intercale "await sleep(ms)" entre as
+chamadas de group.add(). Algo entre 250 e 800 ms por peça costuma
+ficar natural. Se você não usar sleep, as peças aparecem todas de
+uma vez, no tempo real de execução do JavaScript.
+
+NOMEANDO PEÇAS
+---------------
+Defina "objeto.name" com um nome curto e descritivo (ex: "tampo",
+"perna 1", "asa direita"). Esse nome aparece no log de geração.
+
+REGRAS DE CÓDIGO
+------------------
+- Use apenas geometrias e materiais nativos do Three.js (BoxGeometry,
+  SphereGeometry, CylinderGeometry, ConeGeometry, TorusGeometry,
+  ExtrudeGeometry, BufferGeometry customizada, etc.)
+- Materiais recomendados: MeshStandardMaterial ou MeshPhysicalMaterial
+  (a cena já tem luzes e sombras configuradas)
+- Escala de referência: 1 unidade Three.js ~= 1 metro
+- Não crie luzes, câmera ou renderer — já existem
+- Não use setTimeout/setInterval diretamente — use "await sleep(ms)"
+- Não use fetch nem importe arquivos externos
+- Ao final, não exporte nada manualmente — o sistema gera o .glb
+  automaticamente assim que seu código terminar de rodar
+
+FORMATO ESPERADO DA RESPOSTA DA IA
+------------------------------------
+Responda APENAS com o corpo do código JavaScript, sem explicações,
+sem markdown, sem crases, pronto para ser colado direto no editor.
+`;
+
+manualBtn?.addEventListener('click', () => {
+  const blob = new Blob([MANUAL_TEXT], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'manual.txt';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('✓ manual.txt baixado!');
+});
+
+// ---------- Troca de Abas ----------
+function showTab(tab) {
+  tabEditorBtn.classList.toggle('active', tab === 'editor');
+  tabInspectorBtn.classList.toggle('active', tab === 'inspector');
+  tabWeatherBtn.classList.toggle('active', tab === 'weather');
+  tabChatBtn.classList.toggle('active', tab === 'chat');
+
+  editorWrap.style.display = tab === 'editor' ? 'flex' : 'none';
+  editorToolbar.style.display = tab === 'editor' ? 'flex' : 'none';
+  inspectorWrap.classList.toggle('show', tab === 'inspector');
+  weatherWrap.classList.toggle('show', tab === 'weather');
+  chatWrap.classList.toggle('show', tab === 'chat');
+
+  footerEl.classList.toggle('hide', tab === 'chat');
+  statusEl.classList.toggle('hide', tab === 'chat');
+
+  if (tab === 'editor') {
+    panelTitleText.textContent = 'Código do Modelo 3D';
+    refreshGutter();
+  } else if (tab === 'inspector') {
+    panelTitleText.textContent = 'Inspetor & Edição de Peças';
+    updatePieceList();
+  } else if (tab === 'weather') {
+    panelTitleText.textContent = 'Motor de Clima & Atmosfera';
+  } else if (tab === 'chat') {
+    panelTitleText.textContent = 'code aí · Assistente IA';
+  }
+}
+
+tabEditorBtn?.addEventListener('click', () => showTab('editor'));
+tabInspectorBtn?.addEventListener('click', () => showTab('inspector'));
+tabWeatherBtn?.addEventListener('click', () => showTab('weather'));
+tabChatBtn?.addEventListener('click', () => showTab('chat'));
+
+vpWeatherBtn?.addEventListener('click', () => showTab('weather'));
+vpInspectBtn?.addEventListener('click', () => showTab('inspector'));
+
+// ---------- MOTOR THREE.JS & SISTEMA DE CLIMA REALISTA ----------
+let scene, camera, renderer, controls, clock, group;
+let userUpdate = null;
+let genIntervalId = null;
+let cancelled = false;
+let isDragging = false;
+let camLerp = false;
+const camTargetPos = new THREE.Vector3();
+const camTargetLook = new THREE.Vector3();
+
+// Iluminação e Atmosfera
+let sunLight, hemiLight, ambientLight, lightningLight;
+let sunMesh, moonMesh, starField;
+let rainParticles, snowParticles;
+let groundPlane, gridHelper;
+let selectionHelper = null;
+let selectedObject = null;
+
+// Parâmetros de Clima
+let currentTimeOfDay = 12.0; // 0 a 24
+let isTimePlaying = false;
+let currentWeatherMode = 'sunny'; // sunny, sunset, night, cloudy, rain, storm, snow, fog
+let stormTimer = 0;
+
+function buildEnvironment() {
+  scene = new THREE.Scene();
+
+  camera = new THREE.PerspectiveCamera(48, 1, 0.08, 200);
+  camera.position.set(3.6, 2.6, 4.0);
+
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.15;
+  viewportEl.appendChild(renderer.domElement);
+
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.07;
+  controls.target.set(0, 0.5, 0);
+  controls.maxDistance = 50;
+  controls.minDistance = 0.3;
+  controls.addEventListener('start', () => { isDragging = true; });
+  controls.addEventListener('end', () => { isDragging = false; });
+
+  // Luzes
+  ambientLight = new THREE.AmbientLight(0xddeeff, 0.45);
+  scene.add(ambientLight);
+
+  hemiLight = new THREE.HemisphereLight(0x88b5ff, 0x1f1f28, 0.6);
+  scene.add(hemiLight);
+
+  sunLight = new THREE.DirectionalLight(0xfffaed, 1.6);
+  sunLight.position.set(5, 8, 4);
+  sunLight.castShadow = true;
+  sunLight.shadow.mapSize.width = 2048;
+  sunLight.shadow.mapSize.height = 2048;
+  sunLight.shadow.camera.near = 0.5;
+  sunLight.shadow.camera.far = 35;
+  sunLight.shadow.camera.left = -5;
+  sunLight.shadow.camera.right = 5;
+  sunLight.shadow.camera.top = 5;
+  sunLight.shadow.camera.bottom = -5;
+  sunLight.shadow.bias = -0.00015;
+  scene.add(sunLight);
+
+  lightningLight = new THREE.PointLight(0xb0d8ff, 0, 40);
+  lightningLight.position.set(0, 10, 0);
+  scene.add(lightningLight);
+
+  // Chão e Grade
+  const groundGeo = new THREE.PlaneGeometry(50, 50);
+  const groundMat = new THREE.MeshStandardMaterial({
+    color: 0x09090e,
+    roughness: 0.85,
+    metalness: 0.15
+  });
+  groundPlane = new THREE.Mesh(groundGeo, groundMat);
+  groundPlane.rotation.x = -Math.PI / 2;
+  groundPlane.position.y = -0.015;
+  groundPlane.receiveShadow = true;
+  scene.add(groundPlane);
+
+  gridHelper = new THREE.GridHelper(16, 32, 0x3d3d52, 0x161622);
+  gridHelper.position.y = -0.01;
+  scene.add(gridHelper);
+
+  // Astros: Sol e Lua
+  const sunGeo = new THREE.SphereGeometry(0.55, 16, 16);
+  const sunMat = new THREE.MeshBasicMaterial({ color: 0xffeedd });
+  sunMesh = new THREE.Mesh(sunGeo, sunMat);
+  scene.add(sunMesh);
+
+  const moonGeo = new THREE.SphereGeometry(0.45, 16, 16);
+  const moonMat = new THREE.MeshBasicMaterial({ color: 0xddeeff });
+  moonMesh = new THREE.Mesh(moonGeo, moonMat);
+  scene.add(moonMesh);
+
+  // Campo Estelar (Noite)
+  buildStarField();
+
+  // Partículas de Clima (Chuva e Neve)
+  buildWeatherParticles();
+
+  // Grupo Principal do Modelo
+  group = new THREE.Group();
+  scene.add(group);
+
+  // Intercepta group.add para aplicar sombras e animação
+  const originalAdd = THREE.Group.prototype.add;
+  group.add = function (...objs) {
+    originalAdd.apply(this, objs);
+    objs.forEach(o => {
+      enableShadowsRecursive(o);
+      revealPiece(o);
+    });
+    updatePieceList();
+    return this;
+  };
+
+  // Helper de Seleção de Peça
+  selectionHelper = new THREE.BoxHelper(new THREE.Mesh(new THREE.BufferGeometry()), 0x06b6d4);
+  selectionHelper.visible = false;
+  scene.add(selectionHelper);
+
+  clock = new THREE.Clock();
+  applyWeather(currentWeatherMode);
+  updateTimeOfDay(currentTimeOfDay);
+  resize();
+
+  // Raycasting para seleção 3D ao tocar no canvas
+  setupRaycasting();
+}
+
+function enableShadowsRecursive(obj) {
+  obj.traverse((child) => {
+    if (child.isMesh) {
+      child.castShadow = true;
+      child.receiveShadow = true;
+    }
+  });
+}
+
+function buildStarField() {
+  const count = 1200;
+  const positions = new Float32Array(count * 3);
+  for (let i = 0; i < count; i++) {
+    const r = 40 + Math.random() * 20;
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos((Math.random() * 1.8) - 0.9);
+    positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+    positions[i * 3 + 1] = Math.abs(r * Math.cos(phi)) + 1;
+    positions[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+  }
+  const starGeo = new THREE.BufferGeometry();
+  starGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const starMat = new THREE.PointsMaterial({
+    color: 0xffffff,
+    size: 0.35,
+    transparent: true,
+    opacity: 0.0
+  });
+  starField = new THREE.Points(starGeo, starMat);
+  scene.add(starField);
+}
+
+function buildWeatherParticles() {
+  // Chuva
+  const rainCount = 2800;
+  const rainPositions = new Float32Array(rainCount * 3);
+  for (let i = 0; i < rainCount; i++) {
+    rainPositions[i * 3] = (Math.random() - 0.5) * 20;
+    rainPositions[i * 3 + 1] = Math.random() * 14;
+    rainPositions[i * 3 + 2] = (Math.random() - 0.5) * 20;
+  }
+  const rainGeo = new THREE.BufferGeometry();
+  rainGeo.setAttribute('position', new THREE.BufferAttribute(rainPositions, 3));
+  const rainMat = new THREE.PointsMaterial({
+    color: 0x99bbff,
+    size: 0.08,
+    transparent: true,
+    opacity: 0.65
+  });
+  rainParticles = new THREE.Points(rainGeo, rainMat);
+  rainParticles.visible = false;
+  scene.add(rainParticles);
+
+  // Neve
+  const snowCount = 1500;
+  const snowPositions = new Float32Array(snowCount * 3);
+  for (let i = 0; i < snowCount; i++) {
+    snowPositions[i * 3] = (Math.random() - 0.5) * 20;
+    snowPositions[i * 3 + 1] = Math.random() * 14;
+    snowPositions[i * 3 + 2] = (Math.random() - 0.5) * 20;
+  }
+  const snowGeo = new THREE.BufferGeometry();
+  snowGeo.setAttribute('position', new THREE.BufferAttribute(snowPositions, 3));
+  const snowMat = new THREE.PointsMaterial({
+    color: 0xffffff,
+    size: 0.14,
+    transparent: true,
+    opacity: 0.8
+  });
+  snowParticles = new THREE.Points(snowGeo, snowMat);
+  snowParticles.visible = false;
+  scene.add(snowParticles);
+}
+
+// Atualização Dinâmica do Sol, Lua, Sombras e Cores
+function updateTimeOfDay(hour) {
+  currentTimeOfDay = hour;
+  const angle = ((hour - 6) / 24) * Math.PI * 2;
+  const sunY = Math.sin(angle);
+  const sunX = Math.cos(angle);
+
+  const radius = 18;
+  sunLight.position.set(sunX * radius, Math.max(0.2, sunY * radius), 6);
+  sunMesh.position.copy(sunLight.position);
+  sunMesh.visible = sunY > -0.15;
+
+  moonMesh.position.set(-sunX * radius, Math.max(0.2, -sunY * radius), -6);
+  moonMesh.visible = sunY < 0.2;
+
+  // Formatação do Relógio
+  const hInt = Math.floor(hour);
+  const mInt = Math.floor((hour % 1) * 60);
+  const timeStr = String(hInt).padStart(2, '0') + ':' + String(mInt).padStart(2, '0');
+  timeDisplayVal.textContent = timeStr + (hour >= 6 && hour < 18 ? ' (Dia)' : ' (Noite)');
+  vpWeatherTime.textContent = timeStr;
+
+  // Cores do Céu e Intensidade de Luz
+  const isNight = sunY < 0;
+  const sunsetFactor = Math.max(0, 1 - Math.abs(sunY) * 2.5); // perto do horizonte
+
+  if (currentWeatherMode === 'rain' || currentWeatherMode === 'storm') {
+    scene.background = new THREE.Color(0x0c0e14);
+    sunLight.intensity = 0.4;
+    hemiLight.intensity = 0.3;
+    ambientLight.color.setHex(0x334455);
+  } else if (currentWeatherMode === 'fog') {
+    scene.background = new THREE.Color(0x161822);
+    sunLight.intensity = 0.6;
+    hemiLight.intensity = 0.4;
+  } else if (isNight) {
+    // Noite
+    scene.background = new THREE.Color(0x04050a);
+    sunLight.intensity = 0.15;
+    sunLight.color.setHex(0x5577aa);
+    hemiLight.color.setHex(0x223355);
+    hemiLight.groundColor.setHex(0x0a0c14);
+    hemiLight.intensity = 0.35;
+    ambientLight.color.setHex(0x223344);
+    if (starField) starField.material.opacity = 0.9;
+    vpWeatherIcon.textContent = '🌙';
+  } else {
+    // Dia / Pôr do Sol
+    if (sunsetFactor > 0.1) {
+      // Pôr do Sol
+      const sunsetCol = new THREE.Color(0x1a0a1c).lerp(new THREE.Color(0x4a1820), sunsetFactor);
+      scene.background = sunsetCol;
+      sunLight.color.setHex(0xff7733);
+      sunLight.intensity = 1.4;
+      hemiLight.color.setHex(0xff8855);
+      hemiLight.groundColor.setHex(0x1c1420);
+      hemiLight.intensity = 0.65;
+      if (starField) starField.material.opacity = 0.1;
+      vpWeatherIcon.textContent = '🌅';
+    } else {
+      // Dia Claro
+      scene.background = new THREE.Color(0x07080d);
+      sunLight.color.setHex(0xfffaee);
+      sunLight.intensity = 1.7;
+      hemiLight.color.setHex(0x99c2ff);
+      hemiLight.groundColor.setHex(0x1a1a24);
+      hemiLight.intensity = 0.7;
+      ambientLight.color.setHex(0xddeeff);
+      if (starField) starField.material.opacity = 0.0;
+      vpWeatherIcon.textContent = '☀️';
+    }
+  }
+}
+
+// Aplicação dos Modos de Clima
+function applyWeather(mode) {
+  currentWeatherMode = mode;
+  weatherChips.forEach(c => c.classList.toggle('active', c.dataset.weather === mode));
+
+  const names = {
+    sunny: 'Ensolarado',
+    sunset: 'Pôr do Sol',
+    night: 'Noite Estrelada',
+    cloudy: 'Nublado',
+    rain: 'Chuva Realista',
+    storm: 'Tempestade',
+    snow: 'Neve',
+    fog: 'Névoa Volumétrica'
+  };
+  currentWeatherBadge.textContent = names[mode] || mode;
+
+  rainParticles.visible = (mode === 'rain' || mode === 'storm');
+  snowParticles.visible = (mode === 'snow');
+
+  // Névoa
+  if (mode === 'fog') {
+    scene.fog = new THREE.FogExp2(0x161822, 0.08);
+  } else if (mode === 'storm' || mode === 'rain') {
+    scene.fog = new THREE.FogExp2(0x0e1018, 0.045);
+  } else {
+    scene.fog = new THREE.FogExp2(0x07080d, 0.008);
+  }
+
+  // Piso Molhado / Refletivo na Chuva
+  if (mode === 'rain' || mode === 'storm') {
+    groundPlane.material.roughness = 0.2;
+    groundPlane.material.metalness = 0.7;
+    groundPlane.material.color.setHex(0x05060a);
+  } else if (mode === 'snow') {
+    groundPlane.material.roughness = 0.9;
+    groundPlane.material.metalness = 0.1;
+    groundPlane.material.color.setHex(0xdde5ee);
+  } else {
+    groundPlane.material.roughness = 0.85;
+    groundPlane.material.metalness = 0.15;
+    groundPlane.material.color.setHex(0x09090e);
+  }
+
+  if (mode === 'sunset') {
+    timeOfDaySlider.value = 18.2;
+    updateTimeOfDay(18.2);
+  } else if (mode === 'night') {
+    timeOfDaySlider.value = 23.0;
+    updateTimeOfDay(23.0);
+  } else if (mode === 'sunny') {
+    timeOfDaySlider.value = 12.0;
+    updateTimeOfDay(12.0);
+  } else {
+    updateTimeOfDay(parseFloat(timeOfDaySlider.value));
+  }
+}
+
+weatherChips.forEach(chip => {
+  chip.addEventListener('click', () => {
+    applyWeather(chip.dataset.weather);
+    showToast('Clima: ' + chip.textContent.trim(), 'ok');
+  });
+});
+
+timeOfDaySlider.addEventListener('input', (e) => {
+  updateTimeOfDay(parseFloat(e.target.value));
+});
+
+timePlayToggleBtn.addEventListener('click', () => {
+  isTimePlaying = !isTimePlaying;
+  timePlayToggleBtn.textContent = isTimePlaying ? '⏸ Pausar' : '▶ Automático';
+  timePlayToggleBtn.style.color = isTimePlaying ? 'var(--ok)' : '';
+  showToast(isTimePlaying ? 'Ciclo automático iniciado' : 'Ciclo pausado');
+});
+
+toggleShadowsCheck.addEventListener('change', (e) => {
+  sunLight.castShadow = e.target.checked;
+  renderer.shadowMap.enabled = e.target.checked;
+  showToast(e.target.checked ? 'Sombras ativadas' : 'Sombras desativadas');
+});
+toggleStarsCheck.addEventListener('change', (e) => {
+  if (starField) starField.visible = e.target.checked;
+});
+toggleGridCheck.addEventListener('change', (e) => {
+  gridHelper.visible = e.target.checked;
+  groundPlane.visible = e.target.checked;
+});
+
+// ---------- RAYCASTING E SELEÇÃO DE PEÇAS 3D ----------
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+function setupRaycasting() {
+  const dom = renderer.domElement;
+  let downTime = 0;
+  let downPos = { x: 0, y: 0 };
+
+  dom.addEventListener('pointerdown', (e) => {
+    downTime = performance.now();
+    downPos = { x: e.clientX, y: e.clientY };
+  });
+
+  dom.addEventListener('pointerup', (e) => {
+    // Verifica se foi apenas um clique/toque (sem arrastar órbita)
+    const dist = Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y);
+    if (performance.now() - downTime < 300 && dist < 6) {
+      const rect = dom.getBoundingClientRect();
+      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(group.children, true);
+
+      if (intersects.length > 0) {
+        let obj = intersects[0].object;
+        while (obj.parent && obj.parent !== group && obj.parent !== scene) {
+          obj = obj.parent;
+        }
+        selectPiece(obj);
+      } else {
+        selectPiece(null);
+      }
+    }
+  });
+}
+
+function selectPiece(obj) {
+  selectedObject = obj;
+  if (obj) {
+    selectionHelper.setFromObject(obj);
+    selectionHelper.visible = true;
+    showPieceInspector(obj);
+    showToast(`Peça: "${obj.name || 'Selecionada'}"`, 'ok');
+  } else {
+    selectionHelper.visible = false;
+    pieceInspectorDetails.style.display = 'none';
+  }
+  updatePieceListHighlight();
+}
+
+function showPieceInspector(obj) {
+  pieceInspectorDetails.style.display = 'flex';
+  selectedPieceTitle.textContent = `Peça: ${obj.name || 'Objeto 3D'}`;
+
+  // Posição
+  posXSlider.value = obj.position.x;
+  posYSlider.value = obj.position.y;
+  posZSlider.value = obj.position.z;
+  posXVal.textContent = obj.position.x.toFixed(2);
+  posYVal.textContent = obj.position.y.toFixed(2);
+  posZVal.textContent = obj.position.z.toFixed(2);
+
+  // Rotação
+  const rx = THREE.MathUtils.radToDeg(obj.rotation.x);
+  const ry = THREE.MathUtils.radToDeg(obj.rotation.y);
+  const rz = THREE.MathUtils.radToDeg(obj.rotation.z);
+  rotXSlider.value = rx;
+  rotYSlider.value = ry;
+  rotZSlider.value = rz;
+  rotXVal.textContent = rx.toFixed(0) + '°';
+  rotYVal.textContent = ry.toFixed(0) + '°';
+  rotZVal.textContent = rz.toFixed(0) + '°';
+
+  // Escala
+  scaleXSlider.value = obj.scale.x;
+  scaleYSlider.value = obj.scale.y;
+  scaleZSlider.value = obj.scale.z;
+  scaleXVal.textContent = obj.scale.x.toFixed(2);
+  scaleYVal.textContent = obj.scale.y.toFixed(2);
+  scaleZVal.textContent = obj.scale.z.toFixed(2);
+
+  // Material
+  let mat = obj.material;
+  if (Array.isArray(mat)) mat = mat[0];
+  if (mat) {
+    if (mat.color) {
+      matColorPicker.value = '#' + mat.color.getHexString();
+    }
+    matMetalSlider.value = mat.metalness != null ? mat.metalness : 0.3;
+    matMetalVal.textContent = Number(matMetalSlider.value).toFixed(2);
+    matRoughSlider.value = mat.roughness != null ? mat.roughness : 0.4;
+    matRoughVal.textContent = Number(matRoughSlider.value).toFixed(2);
+    matOpacitySlider.value = mat.opacity != null ? mat.opacity : 1.0;
+    matOpacityVal.textContent = Number(matOpacitySlider.value).toFixed(2);
+    matEmissiveSlider.value = mat.emissiveIntensity != null ? mat.emissiveIntensity : 0;
+    matEmissiveVal.textContent = Number(matEmissiveSlider.value).toFixed(1);
+    matWireframeCheck.checked = !!mat.wireframe;
+  }
+}
+
+// Atualização de Transformações da Peça
+function bindTransformControls() {
+  function updatePos() {
+    if (!selectedObject) return;
+    selectedObject.position.set(parseFloat(posXSlider.value), parseFloat(posYSlider.value), parseFloat(posZSlider.value));
+    posXVal.textContent = selectedObject.position.x.toFixed(2);
+    posYVal.textContent = selectedObject.position.y.toFixed(2);
+    posZVal.textContent = selectedObject.position.z.toFixed(2);
+    selectionHelper.update();
+  }
+  posXSlider.addEventListener('input', updatePos);
+  posYSlider.addEventListener('input', updatePos);
+  posZSlider.addEventListener('input', updatePos);
+
+  function updateRot() {
+    if (!selectedObject) return;
+    selectedObject.rotation.set(
+      THREE.MathUtils.degToRad(parseFloat(rotXSlider.value)),
+      THREE.MathUtils.degToRad(parseFloat(rotYSlider.value)),
+      THREE.MathUtils.degToRad(parseFloat(rotZSlider.value))
+    );
+    rotXVal.textContent = rotXSlider.value + '°';
+    rotYVal.textContent = rotYSlider.value + '°';
+    rotZVal.textContent = rotZSlider.value + '°';
+    selectionHelper.update();
+  }
+  rotXSlider.addEventListener('input', updateRot);
+  rotYSlider.addEventListener('input', updateRot);
+  rotZSlider.addEventListener('input', updateRot);
+
+  function updateScale(e) {
+    if (!selectedObject) return;
+    const isUniform = scaleUniformCheck.checked;
+    if (isUniform) {
+      const val = parseFloat(e.target.value);
+      selectedObject.scale.setScalar(val);
+      scaleXSlider.value = val;
+      scaleYSlider.value = val;
+      scaleZSlider.value = val;
+    } else {
+      selectedObject.scale.set(parseFloat(scaleXSlider.value), parseFloat(scaleYSlider.value), parseFloat(scaleZSlider.value));
+    }
+    scaleXVal.textContent = selectedObject.scale.x.toFixed(2);
+    scaleYVal.textContent = selectedObject.scale.y.toFixed(2);
+    scaleZVal.textContent = selectedObject.scale.z.toFixed(2);
+    selectionHelper.update();
+  }
+  scaleXSlider.addEventListener('input', updateScale);
+  scaleYSlider.addEventListener('input', updateScale);
+  scaleZSlider.addEventListener('input', updateScale);
+
+  // Material
+  matColorPicker.addEventListener('input', (e) => {
+    if (!selectedObject) return;
+    const hex = e.target.value;
+    applyMaterialProperty(selectedObject, (m) => { m.color.set(hex); });
+    updatePieceList();
+  });
+
+  document.querySelectorAll('.color-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const hex = chip.dataset.color;
+      matColorPicker.value = hex;
+      if (selectedObject) {
+        applyMaterialProperty(selectedObject, (m) => { m.color.set(hex); });
+        updatePieceList();
+      }
+    });
+  });
+
+  matMetalSlider.addEventListener('input', (e) => {
+    matMetalVal.textContent = parseFloat(e.target.value).toFixed(2);
+    if (!selectedObject) return;
+    applyMaterialProperty(selectedObject, (m) => { m.metalness = parseFloat(e.target.value); });
+  });
+
+  matRoughSlider.addEventListener('input', (e) => {
+    matRoughVal.textContent = parseFloat(e.target.value).toFixed(2);
+    if (!selectedObject) return;
+    applyMaterialProperty(selectedObject, (m) => { m.roughness = parseFloat(e.target.value); });
+  });
+
+  matOpacitySlider.addEventListener('input', (e) => {
+    const val = parseFloat(e.target.value);
+    matOpacityVal.textContent = val.toFixed(2);
+    if (!selectedObject) return;
+    applyMaterialProperty(selectedObject, (m) => {
+      m.transparent = val < 1.0;
+      m.opacity = val;
+    });
+  });
+
+  matEmissiveSlider.addEventListener('input', (e) => {
+    const val = parseFloat(e.target.value);
+    matEmissiveVal.textContent = val.toFixed(1);
+    if (!selectedObject) return;
+    applyMaterialProperty(selectedObject, (m) => {
+      if (!m.emissive) m.emissive = new THREE.Color(0xffffff);
+      m.emissiveIntensity = val;
+    });
+  });
+
+  matWireframeCheck.addEventListener('change', (e) => {
+    if (!selectedObject) return;
+    applyMaterialProperty(selectedObject, (m) => { m.wireframe = e.target.checked; });
+  });
+
+  // Ações da Peça
+  inspFocusBtn.addEventListener('click', () => {
+    if (!selectedObject) return;
+    const box = new THREE.Box3().setFromObject(selectedObject);
+    const center = box.getCenter(new THREE.Vector3());
+    camTargetLook.copy(center);
+    camTargetPos.copy(center).add(new THREE.Vector3(2, 1.5, 2));
+    camLerp = true;
+    setTimeout(() => { camLerp = false; }, 800);
+  });
+
+  inspDupBtn.addEventListener('click', () => {
+    if (!selectedObject) return;
+    const clone = selectedObject.clone();
+    clone.name = (selectedObject.name || 'peça') + '_clone';
+    clone.position.x += 0.3;
+    group.add(clone);
+    selectPiece(clone);
+    showToast('Peça duplicada com sucesso!', 'ok');
+  });
+
+  inspDelBtn.addEventListener('click', () => {
+    if (!selectedObject) return;
+    group.remove(selectedObject);
+    selectPiece(null);
+    updatePieceList();
+    showToast('Peça excluída');
+  });
+}
+bindTransformControls();
+
+function applyMaterialProperty(obj, fn) {
+  obj.traverse((child) => {
+    if (child.isMesh && child.material) {
+      if (Array.isArray(child.material)) child.material.forEach(fn);
+      else fn(child.material);
+    }
+  });
+}
+
+function updatePieceList() {
+  if (!pieceListEl) return;
+  pieceListEl.innerHTML = '';
+  const pieces = group.children;
+  pieceCountBadge.textContent = pieces.length + (pieces.length === 1 ? ' peça' : ' peças');
+
+  if (pieces.length === 0) {
+    pieceListEl.innerHTML = '<div style="font-family:var(--mono); font-size:11px; color:var(--text-dim); text-align:center; padding:12px;">Nenhum modelo gerado ainda. Toque em Começar.</div>';
+    pieceInspectorDetails.style.display = 'none';
+    return;
+  }
+
+  pieces.forEach((p, idx) => {
+    const item = document.createElement('div');
+    item.className = 'piece-item' + (selectedObject === p ? ' active' : '');
+
+    let colorHex = '#7c5cff';
+    if (p.material && p.material.color) colorHex = '#' + p.material.color.getHexString();
+    else if (p.children && p.children[0] && p.children[0].material && p.children[0].material.color) {
+      colorHex = '#' + p.children[0].material.color.getHexString();
+    }
+
+    const typeName = p.geometry ? p.geometry.type.replace('Geometry', '') : 'Mesh';
+
+    item.innerHTML = `
+      <div class="piece-info">
+        <span class="piece-color-dot" style="background:${colorHex}"></span>
+        <div>
+          <div class="piece-name">${p.name || 'peça ' + (idx + 1)}</div>
+          <div class="piece-type">${typeName}</div>
+        </div>
+      </div>
+      <div class="piece-actions">
+        <button class="p-act-btn eye" title="Ocultar/Exibir">👁️</button>
+        <button class="p-act-btn del" title="Excluir" style="color:var(--err);">✕</button>
+      </div>
+    `;
+
+    item.addEventListener('click', (e) => {
+      if (e.target.closest('.del')) {
+        group.remove(p);
+        if (selectedObject === p) selectPiece(null);
+        updatePieceList();
+        return;
+      }
+      if (e.target.closest('.eye')) {
+        p.visible = !p.visible;
+        e.target.closest('.eye').style.opacity = p.visible ? '1' : '0.35';
+        return;
+      }
+      selectPiece(p);
+    });
+
+    pieceListEl.appendChild(item);
+  });
+}
+
+function updatePieceListHighlight() {
+  document.querySelectorAll('.piece-item').forEach((item, idx) => {
+    const p = group.children[idx];
+    item.classList.toggle('active', p === selectedObject);
+  });
+}
+
+function clearGroup() {
+  while (group.children.length) {
+    const obj = group.children[0];
+    THREE.Group.prototype.remove.call(group, obj);
+    if (obj.geometry) obj.geometry.dispose();
+    if (obj.material) {
+      if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
+      else obj.material.dispose();
+    }
+  }
+  userUpdate = null;
+  pieceCount = 0;
+  selectPiece(null);
+  updatePieceList();
+}
+
+function resize() {
+  if (!viewportEl || !renderer || !camera) return;
+  const w = viewportEl.clientWidth || 1;
+  const h = viewportEl.clientHeight || 1;
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+}
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', () => setTimeout(resize, 250));
+
+function fitCameraToGroup() {
+  const box = new THREE.Box3().setFromObject(group);
+  if (box.isEmpty()) return;
+  const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z, 0.5);
+  const dist = maxDim * 2.3;
+  const dir = new THREE.Vector3(1, 0.75, 1.1).normalize();
+  camTargetPos.copy(center).addScaledVector(dir, dist);
+  camTargetLook.copy(center);
+  camLerp = true;
+  camera.near = Math.max(0.01, dist / 100);
+  camera.far = dist * 60;
+  camera.updateProjectionMatrix();
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  const delta = clock.getDelta();
+  const time = clock.getElapsedTime();
+  controls.update();
+
+  if (camLerp && !isDragging) {
+    camera.position.lerp(camTargetPos, 0.08);
+    controls.target.lerp(camTargetLook, 0.08);
+  }
+
+  // Ciclo de Tempo Automático
+  if (isTimePlaying) {
+    currentTimeOfDay = (currentTimeOfDay + delta * 0.4) % 24;
+    timeOfDaySlider.value = currentTimeOfDay;
+    updateTimeOfDay(currentTimeOfDay);
+  }
+
+  // Animação de Chuva
+  if (rainParticles && rainParticles.visible) {
+    const pos = rainParticles.geometry.attributes.position.array;
+    for (let i = 1; i < pos.length; i += 3) {
+      pos[i] -= 0.45;
+      if (pos[i] < 0) pos[i] = 14;
+    }
+    rainParticles.geometry.attributes.position.needsUpdate = true;
+  }
+
+  // Animação de Neve
+  if (snowParticles && snowParticles.visible) {
+    const pos = snowParticles.geometry.attributes.position.array;
+    for (let i = 0; i < pos.length; i += 3) {
+      pos[i + 1] -= 0.06;
+      pos[i] += Math.sin(time * 2 + i) * 0.01;
+      if (pos[i + 1] < 0) pos[i + 1] = 14;
+    }
+    snowParticles.geometry.attributes.position.needsUpdate = true;
+  }
+
+  // Relâmpagos em Tempestade
+  if (currentWeatherMode === 'storm') {
+    stormTimer -= delta;
+    if (stormTimer <= 0) {
+      stormTimer = 2.5 + Math.random() * 5.0;
+      // Flash de Relâmpago
+      lightningLight.intensity = 8.0;
+      setTimeout(() => { lightningLight.intensity = 0; }, 80);
+      setTimeout(() => { lightningLight.intensity = 5.0; }, 140);
+      setTimeout(() => { lightningLight.intensity = 0; }, 220);
+    }
+  }
+
+  // Animação de Revelação de Peças
+  const now = performance.now();
+  group.children.forEach(obj => {
+    if (obj.userData.__revealStart != null) {
+      const t = Math.min(1, (now - obj.userData.__revealStart) / 320);
+      const ease = 1 - Math.pow(1 - t, 3);
+      obj.scale.setScalar(0.05 + ease * 0.95);
+      if (t >= 1) delete obj.userData.__revealStart;
+    }
+  });
+
+  if (selectionHelper && selectionHelper.visible && selectedObject) {
+    selectionHelper.update();
+  }
+
+  if (userUpdate) {
+    try { userUpdate(delta, time); }
+    catch (e) { userUpdate = null; }
+  }
+
+  renderer.render(scene, camera);
+}
+
+buildEnvironment();
+animate();
+
+// ---------- Editor Helpers ----------
+function refreshGutter() {
+  const lines = codeInput.value.split('\n').length;
+  let out = '';
+  for (let i = 1; i <= lines; i++) out += i + '\n';
+  gutter.textContent = out;
+  gutter.scrollTop = codeInput.scrollTop;
+}
+codeInput.addEventListener('input', refreshGutter);
+codeInput.addEventListener('scroll', () => { gutter.scrollTop = codeInput.scrollTop; });
+refreshGutter();
+
+function showStatus(msg, kind) {
+  statusEl.textContent = msg;
+  statusEl.className = kind || '';
+}
+function setLive(on) {
+  liveDot.classList.toggle('live', on);
+  liveLabel.textContent = on ? 'modelo gerado' : 'vazio';
+}
+
+function formatMMSS(ms) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  const mm = Math.floor(s / 60).toString().padStart(2, '0');
+  const ss = (s % 60).toString().padStart(2, '0');
+  return mm + ':' + ss;
+}
+
+function pieceLabel(obj) {
+  if (obj.name) return obj.name;
+  if (obj.geometry && obj.geometry.type) return obj.geometry.type.replace('Geometry', '');
+  return 'peça ' + pieceCount;
+}
+
+let pieceCount = 0;
+let genStartTime = 0;
+
+function revealPiece(obj) {
+  if (!(obj.isObject3D)) return;
+  pieceCount++;
+  obj.visible = true;
+  obj.scale.setScalar(0.05);
+  obj.userData.__revealStart = performance.now();
+
+  fitCameraToGroup();
+
+  if (!cancelled) {
+    const line = document.createElement('div');
+    line.className = 'gen-log-line';
+    line.innerHTML = '+ adicionando <b>' + pieceLabel(obj) + '</b>';
+    genLog.appendChild(line);
+    while (genLog.children.length > 4) genLog.removeChild(genLog.firstChild);
+  }
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+startBtn?.addEventListener('click', () => {
+  const code = codeInput.value;
+  clearGroup();
+  showStatus('');
+  genLog.innerHTML = '';
+
+  if (isEditorMaximized) {
+    appEl.classList.remove('preview-collapsed');
+  }
+
+  cancelled = false;
+  appEl.classList.add('fullscreen');
+  genBottom.classList.remove('show');
+  genLabel.textContent = 'Gerando modelo…';
+  genBarFill.classList.add('indeterminate');
+  genTimer.textContent = '00:00';
+  resize();
+
+  genStartTime = performance.now();
+  genIntervalId = setInterval(() => {
+    genTimer.textContent = formatMMSS(performance.now() - genStartTime);
+  }, 250);
+
+  const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+
+  (async () => {
+    try {
+      const factory = new AsyncFunction(
+        'group', 'scene', 'camera', 'renderer', 'THREE', 'clock', 'sleep',
+        code + '\n;return (typeof update === "function") ? update : null;'
+      );
+      const fn = await factory(group, scene, camera, renderer, THREE, clock, sleep);
+      userUpdate = fn;
+      if (cancelled) return;
+
+      if (pieceCount === 0) {
+        showStatus('O código não adicionou nenhuma peça em "group".', 'err');
+        appEl.classList.remove('fullscreen');
+        clearInterval(genIntervalId);
+        return;
+      }
+      finishGeneration();
+    } catch (e) {
+      if (cancelled) return;
+      clearInterval(genIntervalId);
+      appEl.classList.remove('fullscreen');
+      showStatus('Erro: ' + e.message, 'err');
+      showToast('Erro na execução do código', 'err');
+    }
+  })();
+});
+
+function finishGeneration() {
+  clearInterval(genIntervalId);
+  genBarFill.classList.remove('indeterminate');
+  genBarFill.style.width = '100%';
+  genLabel.textContent = 'Concluído em ' + genTimer.textContent;
+  genDoneLabel.textContent = '— modelo.glb pronto — ' + pieceCount + ' peça' + (pieceCount > 1 ? 's' : '');
+  genBottom.classList.add('show');
+  fitCameraToGroup();
+  setTimeout(() => { camLerp = false; }, 1200);
+  setLive(true);
+  updatePieceList();
+  showStatus('modelo gerado com sucesso.', 'ok');
+  showToast('✓ Modelo 3D gerado com sucesso!', 'ok');
+}
+
+cancelBtn?.addEventListener('click', () => {
+  cancelled = true;
+  clearInterval(genIntervalId);
+  appEl.classList.remove('fullscreen');
+  if (isEditorMaximized) appEl.classList.add('preview-collapsed');
+  genBottom.classList.remove('show');
+  genBarFill.classList.remove('indeterminate');
+  genBarFill.style.width = '0%';
+  setTimeout(resize, 460);
+});
+
+editAgainBtn?.addEventListener('click', () => {
+  appEl.classList.remove('fullscreen');
+  if (isEditorMaximized) appEl.classList.add('preview-collapsed');
+  genBottom.classList.remove('show');
+  setTimeout(resize, 460);
+});
+
+downloadBtn?.addEventListener('click', () => {
+  const exporter = new GLTFExporter();
+  exporter.parse(
+    group,
+    (result) => {
+      const blob = new Blob([result], { type: 'application/octet-stream' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'modelo.glb';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('✓ Download do modelo.glb concluído!', 'ok');
+    },
+    (error) => {
+      showStatus('Erro ao exportar .glb: ' + error.message, 'err');
+      showToast('Erro ao exportar .glb', 'err');
+    },
+    { binary: true }
+  );
+});
+
+resetBtn?.addEventListener('click', () => {
+  clearGroup();
+  setLive(false);
+  showStatus('modelo limpo.', '');
+  showToast('Modelo 3D limpo');
+});
+
+// ---------- code aí (chat Gemini AI) ----------
+const GEMINI_API_KEY = 'AIzaSyDYIRZQXDPSNrUZRMSfgIRR0TyXEV8zAB8';
+const GEMINI_MODEL = 'gemini-3.5-flash';
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+
+const CHAT_SYSTEM_PROMPT =
+`Você é "code aí", uma IA que SÓ sabe uma coisa: escrever código JavaScript
+para o editor 3D descrito no manual abaixo. Você não conversa sobre outros
+assuntos, não dá explicações e não usa markdown nem crases. Sempre que o
+usuário pedir um objeto/modelo 3D, responda APENAS com o corpo do código
+JavaScript pronto para colar no editor, seguindo à risca as regras do
+manual. Às vezes o usuário envia imagens de referência junto com o pedido
+— use-as para basear o formato, proporções e cores do modelo gerado.
+
+` + MANUAL_TEXT;
+
+let chatHistory = [];
+let pendingImages = [];
+const chatMessages = document.getElementById('chatMessages');
+const chatInput = document.getElementById('chatInput');
+const chatSendBtn = document.getElementById('chatSendBtn');
+const chatImageBtn = document.getElementById('chatImageBtn');
+const chatImageInput = document.getElementById('chatImageInput');
+const chatImagePreview = document.getElementById('chatImagePreview');
+
+function addChatMessage(text, cls, images) {
+  const div = document.createElement('div');
+  div.className = 'chat-msg ' + cls;
+  if (images && images.length) {
+    const row = document.createElement('div');
+    row.className = 'chat-msg-images';
+    images.forEach(img => {
+      const el = document.createElement('img');
+      el.src = img.dataUrl;
+      row.appendChild(el);
+    });
+    div.appendChild(row);
+  }
+  if (text) {
+    const p = document.createElement('div');
+    p.textContent = text;
+    div.appendChild(p);
+  }
+  chatMessages.appendChild(div);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+  return div;
+}
+
+function fileToImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result;
+      resolve({ mimeType: file.type || 'image/jpeg', base64: dataUrl.split(',')[1], dataUrl });
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderImagePreview() {
+  chatImagePreview.innerHTML = '';
+  chatImagePreview.classList.toggle('show', pendingImages.length > 0);
+  pendingImages.forEach((img, idx) => {
+    const thumb = document.createElement('div');
+    thumb.className = 'chat-img-thumb';
+    const el = document.createElement('img');
+    el.src = img.dataUrl;
+    const rm = document.createElement('button');
+    rm.className = 'rm';
+    rm.textContent = '×';
+    rm.addEventListener('click', () => {
+      pendingImages.splice(idx, 1);
+      renderImagePreview();
+    });
+    thumb.appendChild(el);
+    thumb.appendChild(rm);
+    chatImagePreview.appendChild(thumb);
+  });
+}
+
+chatImageBtn?.addEventListener('click', () => chatImageInput.click());
+chatImageInput?.addEventListener('change', async () => {
+  const files = Array.from(chatImageInput.files || []);
+  chatImageInput.value = '';
+  for (const file of files) {
+    try { pendingImages.push(await fileToImage(file)); } catch (e) {}
+  }
+  renderImagePreview();
+});
+
+function autoGrowChatInput() {
+  chatInput.style.height = 'auto';
+  chatInput.style.height = Math.min(80, chatInput.scrollHeight) + 'px';
+}
+chatInput?.addEventListener('input', autoGrowChatInput);
+chatInput?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendChatMessage();
+  }
+});
+chatSendBtn?.addEventListener('click', sendChatMessage);
+
+async function sendChatMessage() {
+  const text = chatInput.value.trim();
+  const images = pendingImages;
+  if ((!text && images.length === 0) || chatSendBtn.disabled) return;
+
+  addChatMessage(text, 'user', images);
+
+  const userParts = [];
+  if (text) userParts.push({ text });
+  images.forEach(img => userParts.push({ inline_data: { mime_type: img.mimeType, data: img.base64 } }));
+  chatHistory.push({ role: 'user', parts: userParts });
+
+  chatInput.value = '';
+  autoGrowChatInput();
+  pendingImages = [];
+  renderImagePreview();
+
+  chatSendBtn.disabled = true;
+  const pendingMsg = addChatMessage('gerando código...', 'ai pending');
+
+  try {
+    const contents = chatHistory.map(m => ({ role: m.role, parts: m.parts }));
+
+    const res = await fetch(GEMINI_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': GEMINI_API_KEY
+      },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: CHAT_SYSTEM_PROMPT }] },
+        contents,
+        generationConfig: { temperature: 0.6 }
+      })
+    });
+
+    if (!res.ok) {
+      const errBody = await res.text();
+      throw new Error('HTTP ' + res.status + ' — ' + errBody.slice(0, 200));
+    }
+
+    const data = await res.json();
+    let code = data?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('') || '';
+    code = code.trim().replace(/^```(?:javascript|js)?\n?/i, '').replace(/```$/, '').trim();
+
+    if (!code) throw new Error('resposta vazia da IA.');
+
+    chatHistory.push({ role: 'model', parts: [{ text: code }] });
+
+    pendingMsg.textContent = code;
+    pendingMsg.classList.remove('pending');
+
+    codeInput.value = code;
+    refreshGutter();
+    showTab('editor');
+    showStatus('código recebido do "code aí" — toque em Começar.', 'ok');
+    showToast('✓ Código importado para o editor!', 'ok');
+  } catch (e) {
+    pendingMsg.textContent = 'erro: ' + e.message;
+    pendingMsg.classList.remove('pending');
+    pendingMsg.classList.add('err');
+  } finally {
+    chatSendBtn.disabled = false;
+  }
+}
+</script>
+</body>
+</html>

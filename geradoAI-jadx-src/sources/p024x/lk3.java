@@ -1,0 +1,217 @@
+package p024x;
+
+import com.google.android.gms.ads.nonagon.signalgeneration.zzat;
+import com.google.android.gms.ads.nonagon.signalgeneration.zzau;
+import com.google.android.gms.ads.nonagon.signalgeneration.zzav;
+import com.google.android.gms.ads.nonagon.signalgeneration.zzaw;
+import com.google.android.gms.ads.nonagon.signalgeneration.zzax;
+import com.google.android.gms.ads.nonagon.signalgeneration.zzay;
+import com.google.android.gms.ads.nonagon.signalgeneration.zzbb;
+import com.google.android.gms.ads.nonagon.signalgeneration.zzs;
+import com.google.android.gms.ads.nonagon.signalgeneration.zzx;
+import com.google.common.util.concurrent.ListenableFuture;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+
+/* JADX INFO: loaded from: classes.dex */
+public final class lk3 extends zzx {
+
+    /* JADX INFO: renamed from: a */
+    public final x66 f11722a;
+
+    /* JADX INFO: renamed from: b */
+    public final x66 f11723b;
+
+    public lk3(qj3 qj3Var, zzat zzatVar, hs3 hs3Var) {
+        qi3 qi3Var = qj3Var.f16860h;
+        jl3 jl3Var = new jl3(qi3Var, 11);
+        x66 x66VarM10043a = x66.m10043a(zzau.zza(zzatVar));
+        x66 x66VarM10043a2 = x66.m10043a(C2617yc.f23169m);
+        x66 x66VarM10043a3 = x66.m10043a(new r24(qi3Var, jl3Var, qj3Var.f16864j, x66VarM10043a, x66VarM10043a2));
+        x66 x66VarM10043a4 = x66.m10043a(C1870ko.f11075l);
+        x66 x66VarM10043a5 = x66.m10043a(C1688h6.f8431p);
+        int i = a76.f2589b;
+        LinkedHashMap linkedHashMapM4303i = fy4.m4303i(2);
+        mm5.m6487g(x66VarM10043a4, "provider");
+        linkedHashMapM4303i.put(nq4.SIGNALS, x66VarM10043a4);
+        mm5.m6487g(x66VarM10043a5, "provider");
+        linkedHashMapM4303i.put(nq4.RENDERER, x66VarM10043a5);
+        a76 a76Var = new a76(linkedHashMapM4303i);
+        int i2 = 4;
+        vo3 vo3Var = new vo3(i2, x66VarM10043a3, a76Var);
+        ok3 ok3Var = C1870ko.f11078o;
+        int i3 = 5;
+        x66 x66VarM10043a6 = x66.m10043a(new ml3(vo3Var, i3));
+        ks3 ks3Var = new ks3(hs3Var);
+        x66 x66VarM10043a7 = x66.m10043a(new si3(ks3Var, i3));
+        x66 x66VarM10043a8 = x66.m10043a(zzav.zza(zzatVar));
+        x66 x66VarM10043a9 = x66.m10043a(new e34(qj3Var.f16860h, qj3Var.f16872n, qj3Var.f16849b0, ks3Var, x66VarM10043a7, x66VarM10043a8, qj3Var.f16826L, qj3Var.f16870m));
+        int i4 = f76.f7084c;
+        ArrayList arrayList = new ArrayList(2);
+        List list = Collections.EMPTY_LIST;
+        arrayList.add(z80.f23865D);
+        arrayList.add(C1426c.f4291O);
+        f76 f76Var = new f76(arrayList, list);
+        x66 x66Var = qj3Var.f16858g;
+        x66 x66VarM10043a10 = x66.m10043a(new bj3(x66.m10043a(new aw3(x66VarM10043a9, f76Var, x66Var, 2)), 13));
+        cj3 cj3Var = new cj3(x66.m10043a(new gn3(qj3Var.f16851c0, qj3Var.f16824K, i2)), 12);
+        x66 x66VarM10043a11 = x66.m10043a(C2516we.f21537s);
+        qi3 qi3Var2 = qj3Var.f16860h;
+        int i5 = 3;
+        x66 x66VarM10043a12 = x66.m10043a(new ti3(new uo3(4, x66VarM10043a11, new ab3(new to3(i5, qj3Var.f16856f, new sk3(qi3Var2, 14)), qj3Var.f16818H, i5)), 7));
+        ArrayList arrayList2 = new ArrayList(2);
+        ArrayList arrayList3 = new ArrayList(2);
+        arrayList3.add(x66VarM10043a6);
+        arrayList2.add(x66VarM10043a10);
+        arrayList3.add(cj3Var);
+        arrayList2.add(x66VarM10043a12);
+        pt3 pt3Var = new pt3(new f76(arrayList2, arrayList3), 2);
+        x66 x66Var2 = qj3Var.f16854e;
+        x66 x66VarM10043a13 = x66.m10043a(new is3(i5, x66Var2, pt3Var));
+        qi3 qi3Var3 = qj3Var.f16860h;
+        zzbb zzbbVarZzc = zzbb.zzc(ok3Var, new r64(x66Var2, new cj3(qi3Var3, 13), new jp3(qi3Var3, qj3Var.f16845Y, new cj3(qj3Var.f16846Z, 14), qj3Var.f16847a0, qj3Var.f16894y, 1)));
+        x66 x66VarM10043a14 = x66.m10043a(new is3(hs3Var, qi3Var3, 0));
+        x66 x66VarM10043a15 = x66.m10043a(new fn3(2, x66VarM10043a13, x66VarM10043a14));
+        x66 x66Var3 = qj3Var.f16853d0;
+        x66 x66Var4 = qj3Var.f16816G;
+        uo3 uo3Var = new uo3(new ao3(x66Var3, (y66) ks3Var, (e76) qi3Var3, (e76) x66Var4, 4), x66Var2, 5);
+        uo3 uo3Var2 = new uo3(new kq3(qi3Var3, 10), x66Var2, 7);
+        x66 x66Var5 = qj3Var.f16884t;
+        vo3 vo3Var2 = new vo3(new ss2(x66Var5, qj3Var.f16896z, qj3Var.f16855e0, 2), x66Var2, 7);
+        vo3 vo3Var3 = new vo3(new tl3(qi3Var3, 11), x66Var2, 8);
+        tj4 tj4Var = qj3Var.f16857f0;
+        x66 x66Var6 = qj3Var.f16859g0;
+        x66 x66Var7 = qj3Var.f16861h0;
+        ei4 ei4Var = new ei4(0, x66Var6, x66Var7, tj4Var);
+        ci4 ci4Var = new ci4(qj3Var.f16863i0, qj3Var.f16865j0, x66Var7, x66Var2, 0);
+        ci4 ci4Var2 = new ci4(qj3Var.f16867k0, qj3Var.f16869l0, x66Var7, x66Var2, 2);
+        in3 in3Var = new in3(x66Var3, x66Var2, 6);
+        ao3 ao3Var = new ao3((e76) qj3Var.f16871m0, (e76) qj3Var.f16873n0, (e76) x66Var7, (e76) x66Var2, 5);
+        ui3 ui3Var = new ui3(3, qj3Var.f16875o0, x66Var2);
+        di4 di4Var = new di4(qj3Var.f16877p0, x66Var7, x66Var2, 0);
+        vo3 vo3Var4 = new vo3(new sk3(qj3Var.f16879q0, 16), x66Var2, 9);
+        ab3 ab3Var = new ab3(new ui3(4, qj3Var.f16804A, qi3Var3), x66Var2, 5);
+        cj3 cj3Var2 = new cj3(x66Var2, 16);
+        to3 to3Var = new to3(5, x66Var2, new cl3(qj3Var.f16881r0, 12));
+        oc4 oc4Var = new oc4(qj3Var.f16883s0, qj3Var.f16885t0, x66Var7, x66Var2, 1);
+        n14 n14Var = new n14(new sk3(qi3Var3, 17), x66Var2, 3);
+        z66 z66Var = z66.f23823b;
+        na3 na3Var = new na3(new oh4(z66Var, 0), x66Var2, 9);
+        uo3 uo3Var3 = new uo3(new sr3(qj3Var.f16806B, ks3Var, x66VarM10043a8), x66Var2, 6);
+        jj3 jj3Var = new jj3(x66Var2, 15);
+        n14 n14Var2 = new n14(new aj3(qj3Var.f16812E, 19), x66Var2, 2);
+        int i6 = 4;
+        ab3 ab3Var2 = new ab3(new no3(ks3Var, 8), x66Var2, i6);
+        na3 na3Var2 = new na3(new yk3(ks3Var, qj3Var.f16842V, i6), x66Var2, 8);
+        int i7 = 0;
+        yh4 yh4Var = new yh4(i7, x66Var7, qj3Var.f16889v0, qj3Var.f16887u0);
+        ij3 ij3Var = qj3Var.f16864j;
+        bv3 bv3Var = new bv3(new lj4(qi3Var3, ks3Var, ij3Var), x66Var2, 5);
+        bi4 bi4Var = new bi4(qj3Var.f16891w0, qj3Var.f16893x0, x66Var7, x66Var2, 0);
+        bv3 bv3Var2 = new bv3(new aj3(qi3Var3, 18), qi3Var3, 4);
+        ci4 ci4Var3 = new ci4(qj3Var.f16897z0, qj3Var.f16805A0, x66Var7, x66Var2, 1);
+        is3 is3Var = new is3(new tl3(qi3Var3, 10), x66Var2, 2);
+        kj3 kj3Var = qj3Var.f16849b0;
+        x66 x66VarM10043a16 = x66.m10043a(new ci3(1, x66Var, x66.m10043a(new lq3(x66Var, kj3Var, ks3Var, 0))));
+        kq3 kq3Var = new kq3(x66VarM10043a16, 3);
+        x66 x66VarM10043a17 = x66.m10043a(new gn3(qi3Var3, kj3Var, 5));
+        x66 x66Var8 = qj3Var.f16890w;
+        x66 x66Var9 = qj3Var.f16807B0;
+        x66 x66Var10 = qj3Var.f16809C0;
+        bh4 bh4Var = new bh4(qi3Var3, kq3Var, x66Var8, x66VarM10043a16, x66VarM10043a17, ks3Var, x66VarM10043a9, x66Var9, x66Var10);
+        g54 g54Var = new g54(x66Var, ks3Var, x66Var10, 1);
+        kq3 kq3Var2 = new kq3(x66.m10043a(zzaw.zza(zzatVar)), 9);
+        ml3 ml3Var = new ml3(new no3(hs3Var, 2), 7);
+        nk4 nk4Var = new nk4(z66Var, 0);
+        n14 n14Var3 = new n14(ks3Var, kj3Var, 1);
+        lr3 lr3Var = new lr3(x66.m10043a(new vx3(qj3Var.f16826L, qi3Var3, ks3Var, x66Var10)), x66Var2, 2);
+        ck4 ck4Var = new ck4(x66Var2, x66VarM10043a8, qj3Var.f16888v, x66VarM10043a14, ks3Var, x66.m10043a(new cl3(x66Var5, 11)), x66Var5, qj3Var.f16892x);
+        kq3 kq3Var3 = new kq3(x66VarM10043a7, 11);
+        hn3 hn3Var = new hn3(qi3Var3, x66Var4, x66Var2, 1);
+        qc4 qc4Var = new qc4(qj3Var.f16818H, qi3Var3, x66Var2, new cj3(qi3Var3, 15), ks3Var, ij3Var, 1);
+        C1719hr c1719hr = new C1719hr(39, 2);
+        c1719hr.m4881j(uo3Var);
+        c1719hr.m4881j(uo3Var2);
+        c1719hr.m4881j(vo3Var2);
+        c1719hr.m4881j(vo3Var3);
+        c1719hr.m4881j(ei4Var);
+        c1719hr.m4881j(ci4Var);
+        c1719hr.m4881j(ci4Var2);
+        c1719hr.m4881j(in3Var);
+        c1719hr.m4881j(ao3Var);
+        c1719hr.m4881j(ui3Var);
+        c1719hr.m4881j(di4Var);
+        c1719hr.m4881j(vo3Var4);
+        c1719hr.m4881j(ab3Var);
+        c1719hr.m4881j(cj3Var2);
+        c1719hr.m4881j(to3Var);
+        c1719hr.m4881j(oc4Var);
+        c1719hr.m4881j(n14Var);
+        c1719hr.m4881j(na3Var);
+        c1719hr.m4881j(uo3Var3);
+        c1719hr.m4882l(jj3Var);
+        c1719hr.m4881j(n14Var2);
+        c1719hr.m4881j(ab3Var2);
+        c1719hr.m4881j(na3Var2);
+        c1719hr.m4881j(yh4Var);
+        c1719hr.m4881j(bv3Var);
+        c1719hr.m4881j(bi4Var);
+        c1719hr.m4882l(bv3Var2);
+        c1719hr.m4881j(ci4Var3);
+        c1719hr.m4881j(is3Var);
+        c1719hr.m4881j(bh4Var);
+        c1719hr.m4881j(g54Var);
+        c1719hr.m4881j(kq3Var2);
+        c1719hr.m4881j(ml3Var);
+        c1719hr.m4881j(nk4Var);
+        c1719hr.m4881j(n14Var3);
+        c1719hr.m4881j(lr3Var);
+        c1719hr.m4881j(qj3Var.f16811D0);
+        c1719hr.m4881j(ck4Var);
+        c1719hr.m4881j(kq3Var3);
+        c1719hr.m4881j(hn3Var);
+        c1719hr.m4881j(qc4Var);
+        f76 f76VarM4883m = c1719hr.m4883m();
+        x66 x66VarM10043a18 = x66.m10043a(new aj3(qj3Var.f16894y, 21));
+        this.f11722a = x66VarM10043a18;
+        int i8 = 5;
+        r04 r04Var = new r04(qi3Var2, f76VarM4883m, x66VarM10043a18, i8);
+        x66 x66VarM10043a19 = x66.m10043a(new aj3(x66.m10043a(new pq3(x66Var, qj3Var.f16807B0, ks3Var, x66VarM10043a7)), i8));
+        List list2 = Collections.EMPTY_LIST;
+        ArrayList arrayList4 = new ArrayList(1);
+        arrayList4.add(x66VarM10043a19);
+        x66 x66VarM10043a20 = x66.m10043a(new gt3(new f76(list2, arrayList4), 1));
+        ij3 ij3Var2 = qj3Var.f16864j;
+        x66 x66Var11 = qj3Var.f16866k;
+        x66 x66Var12 = qj3Var.f16868l;
+        ki3 ki3Var = qj3Var.f16818H;
+        as3 as3Var = new as3(x66VarM10043a13, ij3Var2, x66Var11, jl3Var, x66Var12, x66VarM10043a15, ki3Var, x66VarM10043a2, r04Var, ks3Var, x66VarM10043a20);
+        x66 x66VarM10043a21 = x66.m10043a(zzax.zza(x66.m10043a(zzs.zza(x66VarM10043a9, qj3Var.f16841U, x66VarM10043a7)), ok3Var));
+        qi3 qi3Var4 = qj3Var.f16860h;
+        x66 x66VarM10043a22 = x66.m10043a(new tl3(x66.m10043a(new nr3(qi3Var4, ks3Var, ij3Var2, ki3Var, qj3Var.f16896z, qj3Var.f16894y, qj3Var.f16812E)), i8));
+        x66 x66VarM10043a23 = x66.m10043a(new bj3(qj3Var.f16814F, 7));
+        int i9 = 3;
+        x66 x66VarM10043a24 = x66.m10043a(new aj3(x66.m10043a(new gn3(x66VarM10043a9, qj3Var.f16872n, i9)), 13));
+        x66 x66VarM10043a25 = x66.m10043a(new aj3(x66.m10043a(new in3(qi3Var4, qj3Var.f16874o, i9)), 17));
+        ArrayList arrayList5 = new ArrayList(5);
+        List list3 = Collections.EMPTY_LIST;
+        arrayList5.add(x66VarM10043a21);
+        arrayList5.add(x66VarM10043a22);
+        arrayList5.add(x66VarM10043a23);
+        arrayList5.add(x66VarM10043a24);
+        arrayList5.add(x66VarM10043a25);
+        this.f11723b = x66.m10043a(zzay.zza(x66VarM10043a13, zzbbVarZzc, as3Var, x66.m10043a(new au3(new f76(arrayList5, list3), 3))));
+    }
+
+    @Override // com.google.android.gms.ads.nonagon.signalgeneration.zzx
+    public final ListenableFuture zza() {
+        return (ListenableFuture) this.f11723b.zzb();
+    }
+
+    @Override // com.google.android.gms.ads.nonagon.signalgeneration.zzx
+    public final cr4 zzb() {
+        return (cr4) this.f11722a.zzb();
+    }
+}

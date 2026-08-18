@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+*.tmp
+debug.keystore

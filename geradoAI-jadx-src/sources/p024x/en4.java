@@ -1,0 +1,7 @@
+package p024x;
+
+/* JADX INFO: loaded from: classes.dex */
+public interface en4 {
+    /* JADX INFO: renamed from: a */
+    void mo3831a(en4 en4Var);
+}

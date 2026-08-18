@@ -1,0 +1,45 @@
+# Hosts-style ad blocker list bundled into generated apps.
+# Format supports plain domains and standard hosts entries such as:
+# 0.0.0.0 example.com
+# 127.0.0.1 example.com
+
+0.0.0.0 googlesyndication.com
+0.0.0.0 pagead2.googlesyndication.com
+0.0.0.0 googleadservices.com
+0.0.0.0 googleads.g.doubleclick.net
+0.0.0.0 doubleclick.net
+0.0.0.0 securepubads.g.doubleclick.net
+0.0.0.0 googletagservices.com
+0.0.0.0 adservice.google.com
+0.0.0.0 ads.google.com
+0.0.0.0 an.facebook.com
+0.0.0.0 audiencenetwork.com
+0.0.0.0 graph.facebook.com
+0.0.0.0 applovin.com
+0.0.0.0 unityads.unity3d.com
+0.0.0.0 auction.unityads.unity3d.com
+0.0.0.0 ironsrc.com
+0.0.0.0 iron-source.com
+0.0.0.0 vungle.com
+0.0.0.0 adcolony.com
+0.0.0.0 chartboost.com
+0.0.0.0 mopub.com
+0.0.0.0 criteo.com
+0.0.0.0 bidder.criteo.com
+0.0.0.0 taboola.com
+0.0.0.0 trc.taboola.com
+0.0.0.0 outbrain.com
+0.0.0.0 amplify.outbrain.com
+0.0.0.0 aax.amazon-adsystem.com
+0.0.0.0 c.amazon-adsystem.com
+0.0.0.0 s.amazon-adsystem.com
+0.0.0.0 inmobi.com
+0.0.0.0 ads.yap.yahoo.com
+0.0.0.0 gemini.yahoo.com
+0.0.0.0 prebid.org
+0.0.0.0 openx.com
+0.0.0.0 rubiconproject.com
+0.0.0.0 pubmatic.com
+0.0.0.0 casalemedia.com
+0.0.0.0 smartadserver.com
+0.0.0.0 an.yandex.ru

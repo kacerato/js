@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="AppTheme" parent="android:Theme.DeviceDefault.NoActionBar">
+        <item name="android:windowFullscreen">false</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:textColorSecondary">#FF757575</item>
+        <item name="android:textColorTertiary">#FF9E9E9E</item>
+        <item name="android:textColorHint">#FF9E9E9E</item>
+    </style>
+    
+    <style name="AppTheme.Fullscreen" parent="android:Theme.DeviceDefault.NoActionBar">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:textColorSecondary">#FF757575</item>
+        <item name="android:textColorTertiary">#FF9E9E9E</item>
+        <item name="android:textColorHint">#FF9E9E9E</item>
+    </style>
+</resources>

@@ -1,0 +1,51 @@
+package p024x;
+
+/* JADX INFO: loaded from: classes.dex */
+public final class rt2 {
+    /* JADX INFO: renamed from: a */
+    public static void m8316a(int i, int i2) {
+        String strM8916a;
+        if (i < 0 || i >= i2) {
+            if (i < 0) {
+                strM8916a = tw2.m8916a("%s (%s) must not be negative", "index", Integer.valueOf(i));
+            } else {
+                if (i2 < 0) {
+                    throw new IllegalArgumentException(C1350ax.m2260i(i2, "negative size: "));
+                }
+                strM8916a = tw2.m8916a("%s (%s) must be less than size (%s)", "index", Integer.valueOf(i), Integer.valueOf(i2));
+            }
+            throw new IndexOutOfBoundsException(strM8916a);
+        }
+    }
+
+    /* JADX INFO: renamed from: b */
+    public static void m8317b(int i, int i2) {
+        if (i < 0 || i > i2) {
+            throw new IndexOutOfBoundsException(m8319d(i, i2, "index"));
+        }
+    }
+
+    /* JADX INFO: renamed from: c */
+    public static void m8318c(int i, int i2, int i3) {
+        String strM8319d;
+        if (i < 0 || i2 < i || i2 > i3) {
+            if (i < 0 || i > i3) {
+                strM8319d = m8319d(i, i3, "start index");
+            } else {
+                strM8319d = (i2 < 0 || i2 > i3) ? m8319d(i2, i3, "end index") : tw2.m8916a("end index (%s) must not be less than start index (%s)", Integer.valueOf(i2), Integer.valueOf(i));
+            }
+            throw new IndexOutOfBoundsException(strM8319d);
+        }
+    }
+
+    /* JADX INFO: renamed from: d */
+    public static String m8319d(int i, int i2, String str) {
+        if (i < 0) {
+            return tw2.m8916a("%s (%s) must not be negative", str, Integer.valueOf(i));
+        }
+        if (i2 >= 0) {
+            return tw2.m8916a("%s (%s) must not be greater than size (%s)", str, Integer.valueOf(i), Integer.valueOf(i2));
+        }
+        throw new IllegalArgumentException(C1350ax.m2260i(i2, "negative size: "));
+    }
+}

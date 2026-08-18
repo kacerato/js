@@ -1,0 +1,130 @@
+.class public final Lx/i7;
+.super Ljava/lang/Object;
+.source ""
+
+# interfaces
+.implements Lx/oj0;
+
+
+# annotations
+.annotation system Ldalvik/annotation/Signature;
+    value = {
+        "Ljava/lang/Object;",
+        "Lx/oj0<",
+        "Lx/le;",
+        ">;"
+    }
+.end annotation
+
+
+# static fields
+.field public static final a:Lx/i7;
+
+.field public static final b:Lx/ww;
+
+.field public static final c:Lx/ww;
+
+
+# direct methods
+.method static constructor <clinit>()V
+    .locals 1
+
+    .line 1
+    new-instance v0, Lx/i7;
+
+    .line 2
+    .line 3
+    invoke-direct {v0}, Ljava/lang/Object;-><init>()V
+
+    .line 4
+    .line 5
+    .line 6
+    sput-object v0, Lx/i7;->a:Lx/i7;
+
+    .line 7
+    .line 8
+    const-string v0, "clientType"
+
+    .line 9
+    .line 10
+    invoke-static {v0}, Lx/ww;->a(Ljava/lang/String;)Lx/ww;
+
+    .line 11
+    .line 12
+    .line 13
+    move-result-object v0
+
+    .line 14
+    sput-object v0, Lx/i7;->b:Lx/ww;
+
+    .line 15
+    .line 16
+    const-string v0, "androidClientInfo"
+
+    .line 17
+    .line 18
+    invoke-static {v0}, Lx/ww;->a(Ljava/lang/String;)Lx/ww;
+
+    .line 19
+    .line 20
+    .line 21
+    move-result-object v0
+
+    .line 22
+    sput-object v0, Lx/i7;->c:Lx/ww;
+
+    .line 23
+    .line 24
+    return-void
+.end method
+
+
+# virtual methods
+.method public final a(Ljava/lang/Object;Ljava/lang/Object;)V
+    .locals 2
+
+    .line 1
+    check-cast p1, Lx/le;
+
+    .line 2
+    .line 3
+    check-cast p2, Lx/pj0;
+
+    .line 4
+    .line 5
+    sget-object v0, Lx/i7;->b:Lx/ww;
+
+    .line 6
+    .line 7
+    invoke-virtual {p1}, Lx/le;->b()Lx/le$a;
+
+    .line 8
+    .line 9
+    .line 10
+    move-result-object v1
+
+    .line 11
+    invoke-interface {p2, v0, v1}, Lx/pj0;->e(Lx/ww;Ljava/lang/Object;)Lx/pj0;
+
+    .line 12
+    .line 13
+    .line 14
+    sget-object v0, Lx/i7;->c:Lx/ww;
+
+    .line 15
+    .line 16
+    invoke-virtual {p1}, Lx/le;->a()Lx/b3;
+
+    .line 17
+    .line 18
+    .line 19
+    move-result-object p1
+
+    .line 20
+    invoke-interface {p2, v0, p1}, Lx/pj0;->e(Lx/ww;Ljava/lang/Object;)Lx/pj0;
+
+    .line 21
+    .line 22
+    .line 23
+    return-void
+.end method

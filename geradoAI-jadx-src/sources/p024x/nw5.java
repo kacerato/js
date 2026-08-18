@@ -1,0 +1,37 @@
+package p024x;
+
+/* JADX INFO: loaded from: classes.dex */
+public final class nw5 extends bi6 implements bk6 {
+    private static final nw5 zzb;
+    private int zzd;
+    private vv5 zze;
+    private eq5 zzf;
+
+    static {
+        nw5 nw5Var = new nw5();
+        zzb = nw5Var;
+        bi6.m2606l(nw5.class, nw5Var);
+    }
+
+    @Override // p024x.bi6
+    /* JADX INFO: renamed from: f */
+    public final Object mo2050f(int i) {
+        int i2 = i - 1;
+        if (i2 == 0) {
+            return (byte) 1;
+        }
+        if (i2 == 2) {
+            return new kk6(zzb, "\u0004\u0002\u0000\u0001\u0001\u0002\u0002\u0000\u0000\u0000\u0001ဉ\u0000\u0002ဉ\u0001", new Object[]{"zzd", "zze", "zzf"});
+        }
+        if (i2 == 3) {
+            return new nw5();
+        }
+        if (i2 == 4) {
+            return new yh5(zzb);
+        }
+        if (i2 == 5) {
+            return zzb;
+        }
+        throw null;
+    }
+}

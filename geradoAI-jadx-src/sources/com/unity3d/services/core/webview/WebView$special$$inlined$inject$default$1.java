@@ -1,0 +1,30 @@
+package com.unity3d.services.core.webview;
+
+import com.google.android.gms.ads.RequestConfiguration;
+import com.unity3d.services.core.p005di.IServiceComponent;
+import com.unity3d.services.core.request.metrics.SDKMetricsSender;
+import kotlin.Metadata;
+import p024x.g10;
+import p024x.nb0;
+import p024x.qs0;
+
+/* JADX INFO: loaded from: classes.dex */
+@Metadata(m1723d1 = {"\u0000\f\n\u0002\b\u0002\n\u0002\u0010\u0000\n\u0002\b\u0003\u0010\u0000\u001a\u0002H\u0001\"\n\b\u0000\u0010\u0001\u0018\u0001*\u00020\u0002H\n¢\u0006\u0004\b\u0003\u0010\u0004¨\u0006\u0005"}, m1724d2 = {"<anonymous>", RequestConfiguration.MAX_AD_CONTENT_RATING_T, "", "invoke", "()Ljava/lang/Object;", "com/unity3d/services/core/di/IServiceComponentKt$inject$1"}, m1725k = 3, m1726mv = {1, 8, 0}, m1728xi = 48)
+public final class WebView$special$$inlined$inject$default$1 extends nb0 implements g10<SDKMetricsSender> {
+    final /* synthetic */ String $named;
+    final /* synthetic */ IServiceComponent $this_inject;
+
+    /* JADX WARN: 'super' call moved to the top of the method (can break code semantics) */
+    public WebView$special$$inlined$inject$default$1(IServiceComponent iServiceComponent, String str) {
+        super(0);
+        this.$this_inject = iServiceComponent;
+        this.$named = str;
+    }
+
+    /* JADX WARN: Type inference failed for: r0v3, types: [com.unity3d.services.core.request.metrics.SDKMetricsSender, java.lang.Object] */
+    @Override // p024x.g10
+    public final SDKMetricsSender invoke() {
+        IServiceComponent iServiceComponent = this.$this_inject;
+        return iServiceComponent.getServiceProvider().getRegistry().getService(this.$named, qs0.m7995a(SDKMetricsSender.class));
+    }
+}
