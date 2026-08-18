@@ -8,9 +8,10 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <title>Three Studio — Auto High-Poly + Image to 3D</title>
   <link rel="stylesheet" href="./src/styles.css" />
+  <link rel="stylesheet" href="./src/layout-fixes.css" />
 </head>
 <body>
-  <div id="app" class="app-shell">
+  <div id="app" class="app-shell" data-dock-tab="code">
     <header class="topbar">
       <div class="brand-block">
         <div class="brand-mark" aria-hidden="true"></div>
@@ -191,15 +192,18 @@
         <div class="dock-pane" data-pane="reference">
           <div class="reference-layout">
             <div id="referenceDrop" class="reference-drop">
-              <input id="referenceInput" type="file" accept="image/*" multiple hidden />
               <span class="large-icon" data-icon="image-3d"></span>
-              <strong>Adicione uma ou mais referências</strong>
-              <p>Frente, lateral, traseira ou detalhes melhoram a reconstrução.</p>
-              <button class="ui-btn accent" id="chooseReferenceBtn" data-icon="upload"><span>Escolher imagens</span></button>
+              <strong>Referências do objeto</strong>
+              <p>Use frente, lateral ou detalhes. Quanto mais ângulos úteis, menor a parte inventada.</p>
+              <div class="native-picker">
+                <button class="ui-btn accent" id="chooseReferenceBtn" data-icon="upload" type="button" tabindex="-1"><span>Escolher imagens</span></button>
+                <input id="referenceInput" class="native-picker-input" type="file" accept="image/jpeg,image/png,image/webp,image/*" multiple aria-label="Escolher imagens de referência" />
+              </div>
+              <div id="referenceCount" class="reference-count">Nenhuma imagem selecionada</div>
             </div>
             <div id="referenceGallery" class="reference-gallery"></div>
             <div class="reference-controls">
-              <label>Objetivo<textarea id="imagePrompt" rows="4" placeholder="Ex.: reconstrua esta casa preservando proporções, telhado, vigas e detalhes de madeira."></textarea></label>
+              <label>Objetivo<textarea id="imagePrompt" rows="3" placeholder="Ex.: preservar telhado, vigas, proporções e detalhes reais da casa."></textarea></label>
               <button class="ui-btn accent wide" id="startImagePipelineBtn" data-icon="image-3d"><span>Reconstruir em 3D</span></button>
             </div>
           </div>
@@ -237,6 +241,7 @@
     }
   }
   </script>
+  <script src="./src/runtime-fixes.js"></script>
   <script type="module" src="./src/app.js"></script>
 </body>
 </html>
