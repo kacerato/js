@@ -1,103 +1,113 @@
-# 3D Studio Max — WebGL 2.0 HD & Android App
+# Three Studio — Auto High-Poly + Image to 3D
 
-Gerador e visualizador de modelos 3D em tempo real com **WebGL 2.0 HD**, **Camada de Aprimoramento High-Poly (Bevel & Subdivisão)**, **Sistema de Clima Realista (Dia/Noite)**, **Inspetor e Editor de Peças 3D**, e assistente IA integrado (**code aí**).
+Three Studio is a browser/Android Three.js modelling workspace focused on procedural reconstruction, automatic dense geometry and GLB export.
 
-Disponível tanto como aplicação Web (HTML5/JavaScript) quanto como aplicativo nativo Android (**APK**).
+The current architecture replaces the old manual High-Poly toggle with a mandatory post-generation geometry pipeline. Models generated from code or from the Image-to-3D workflow are refined automatically before they are considered complete.
 
----
-
-## 🚀 Funcionalidades Principais
-
-### 1. Motor Gráfico WebGL 2.0 HD & PBR de Alta Fidelidade
-- **Inicialização Nativa WebGL 2.0**: Contexto gráfico `webgl2` com alta precisão e performance em GPUs móveis e desktop.
-- **Espaço de Cores sRGB & ACESFilmic Tone Mapping**: Renderização HDR física com resposta de cor cinematográfica.
-- **Ambiente HDR de Estúdio Dinâmico (PMREM)**: Reflexos especulares realistas gerados proceduralmente para materiais metálicos, plásticos e vidro.
-- **Sombras Suaves PCF Soft Shadow Mapping (2048x2048)**: Projeção de sombras com penumbra suave em tempo real.
-- **Chão e Grade Reflexivos**: Ajuste automático de rugosidade e reflexividade baseado no clima (piso molhado na chuva, neve, etc.).
-
-### 2. Camada de Aprimoramento High-Poly (Mesh Enhancer)
-- **Transformação de Formas Geométricas em Modelos High-Poly**:
-  - `BoxGeometry` -> **Rounded Box com Chanfro / Bevel nas bordas**, eliminando quinas duras artificiais e criando reflexos de luz de estúdio nas arestas.
-  - `CylinderGeometry` -> Aumento para 64 segmentos com chanfro e suavização de normais.
-  - `SphereGeometry` -> Subdivisão 64x64 com interpolação de normais esféricas.
-  - `Cone / Torus / Extrude` -> Densidade poligonal elevada e acabamento orgânico.
-- **Micro-Texturas PBR Procedurais em Tempo Real**:
-  - 💎 **Metal Escovado**: Micro-ranhuras lineares.
-  - 🚗 **Fibra de Carbono**: Trama entrelaçada com brilho anisotrópico.
-  - 🎨 **Polímero Fosco**: Textura micro-granulada acetinada.
-  - 🪵 **Couro Fino**: Textura orgânica sutil.
-- **Controles Integrados**: Botão *"✨ High-Poly"* na barra superior e no inspetor para aprimorar peças individuais ou todo o modelo com 1 clique.
-
-### 3. Editor de Código Three.js Otimizado
-- **Execução em Tempo Real**: Código JavaScript executado assincronamente com animação progressiva de revelação das peças.
-- **Upload Direto de Arquivos (`.js`, `.txt`, `.json`)**: Carregamento sem limites de caracteres para códigos extensos gerados por IA.
-- **Botão de Colar Rápido**: Suporte à Clipboard API para colar código com 1 toque.
-- **Modo Foco / Maximizar Editor (⛶)**: Recolhe o preview 3D para dedicar 100% da tela ao código.
-- **Controle de Fonte Dinâmico (A- / A+)**: Ajuste de tamanho da fonte (10px a 22px) com persistência local.
-- **Exportação do Código**: Download instantâneo do código como `modelo.js`.
-
-### 4. Sistema de Clima Realista & Ciclo Dia/Noite
-- **Ciclo 24 Horas Contínuo**: Trajetória solar e lunar com iluminação astronômica dinâmica.
-- **7 Modos Climáticos com Partículas**:
-  - ☀️ **Dia Ensolarado**: Céu limpo, iluminação direta e sombras nítidas.
-  - 🌅 **Pôr do Sol (*Golden Hour*)**: Horizonte avermelhado/dourado e sombras alongadas.
-  - 🌙 **Noite Estrelada**: Luar suave com **1.200 estrelas cintilantes**.
-  - ⛅ **Nublado**: Atmosfera difusa suave.
-  - 🌧️ **Chuva**: 2.800 gotas caindo com velocidade terminal e chão molhado reflexivo.
-  - ⛈️ **Tempestade**: Chuva torrencial combinada com **relâmpagos dinâmicos** que iluminam a cena.
-  - ❄️ **Neve**: 1.500 flocos de neve flutuando com movimento senoidal.
-  - 🌫️ **Névoa Volumétrica**: Profundidade atmosférica exponencial (`THREE.FogExp2`).
-
-### 5. Inspetor & Componente de Edição 3D
-- **Árvore de Peças**: Lista hierárquica de todas as partes de `group` com tipos de geometria e cores.
-- **Seleção 3D Direta (Raycasting)**: Toque ou clique em qualquer peça na tela 3D para selecioná-la com caixa delimitadora ciano/roxa (`BoxHelper`).
-- **Controles de Transformação**: Posição, Rotação em graus (-180° a +180°) e Escala (proporcional ou individual).
-- **Editor de Materiais PBR**: Color Picker, Metalicidade, Rugosidade, Opacidade/Transparência, Emissividade (Glow) e Wireframe.
-- **Ações Rápidas**: Focar câmera, clonar peça, ocultar/exibir e excluir.
-
-### 6. Assistente IA Integrado ("code aí") & Exportação .GLB
-- Chat com a IA Gemini configurado com regras rígidas do `manual.txt`.
-- Suporte a envio de imagens de referência para geração de modelos proporcionais.
-- Exportador GLTF/GLB nativo integrado para download do modelo 3D compatível com Blender, Unity, Unreal e visualizadores 3D.
-
----
-
-## 📁 Estrutura do Repositório
+## Main workflow
 
 ```text
-├── index.html                   # Aplicação Web Studio completa (HTML/CSS/JS/WebGL 2.0/Three.js)
-├── geradoAI-atualizado.apk      # APK Android atualizado, alinhado e assinado (V1/V2/V3)
-├── geradoAI 1.0.0.apk           # APK original base
-├── repack_and_sign.py           # Script Python para criptografia ENCF, montagem do APK e assinatura
-├── uber-apk-signer.jar          # Utilitário de Zipalign e assinatura APK V1, V2 e V3
-├── geradoAI-apktool/            # Código-fonte e assets descompilados via Apktool
-│   ├── AndroidManifest.xml      # Manifesto Android com tema fullscreen e orientações
-│   ├── assets/                  # Assets da aplicação
-│   │   ├── config.json.decrypted# Configuração do aplicativo descriptografada (Premium/Sem marca d'água)
-│   │   ├── config.json          # Configuração criptografada (AES-256-CBC ENCF)
-│   │   └── www/
-│   │       ├── index.html.decrypted # Código Web descriptografado (WebGL 2.0 HD + High-Poly)
-│   │       └── index.html       # Código Web criptografado
-│   ├── res/                     # Recursos XML, ícones, layouts e estilos Android
-│   └── smali/                   # Código Smali da aplicação
-└── geradoAI-jadx-src/           # Código Java / Kotlin descompilado via JADX
-    └── sources/                 # Código Java da arquitetura Android
+Reference image(s)
+  -> visual assessment
+  -> detail inventory
+  -> ObjectSculptSpec
+  -> procedural Three.js build
+  -> automatic High-Poly
+  -> reference-vs-render review
+  -> bounded correction loop
+  -> final GLB
 ```
 
----
+## Automatic High-Poly
 
-## 🛠️ Como Executar e Recompilar
+There is no High-Poly button. The pipeline runs after model generation.
 
-### Executar no Navegador (Web)
-Basta abrir o arquivo `index.html` em qualquer navegador moderno (Chrome, Edge, Firefox, Safari).
+For supported static meshes it performs:
 
-### Recompilar e Assinar o APK Android
+1. primitive-aware reconstruction (including RoundedBoxGeometry for boxes),
+2. vertex welding,
+3. adaptive Loop subdivision,
+4. hard-edge / crease preservation,
+5. surface-aware micro-displacement for wood, stone and organic surfaces,
+6. creased normal reconstruction,
+7. PBR material cleanup,
+8. scene and per-mesh statistics refresh.
+
+A device-aware profile selects a triangle budget automatically. A module Web Worker executes subdivision when supported; Android/WebView environments that reject module workers fall back safely to the main-thread implementation with frame yielding between meshes.
+
+Meshes can provide semantic hints:
+
+```js
+mesh.userData.surface = 'wood'; // smooth | wood | stone | metal | organic
+mesh.userData.creaseAngle = 52;
+mesh.userData.bevelRadius = 0.03;
+```
+
+Skinned meshes, morph targets and multi-material meshes that cannot be rewritten safely are left untouched instead of being corrupted.
+
+## Image to 3D
+
+The Image-to-3D panel accepts up to six reference images. Multi-view references are passed together so front/side/back/detail views can constrain the same reconstruction.
+
+The pipeline is intentionally staged:
+
+`Intake -> Assessment -> Detail Inventory -> Sculpt Spec -> Blockout -> Structural -> Form -> Surface -> Auto High-Poly -> Material -> Vision Review -> Optimization`
+
+The visual review sends the source reference(s) and the current WebGL render to the model and asks for strict silhouette, structure, detail and material scores. A low score triggers a bounded code-correction pass instead of accepting the first plausible model.
+
+## Workspace layout
+
+- top bar: project/import, Image-to-3D, GLB export and live geometry statistics;
+- left rail: select, move, rotate, scale, focus, wireframe and grid;
+- center: Three.js viewport;
+- right side: scene hierarchy and contextual inspector;
+- bottom dock: code, console, generation passes, references and comparison review.
+
+The UI uses a single SVG icon family. Emoji glyphs are not used as controls.
+
+## Source structure
+
+```text
+index.html
+src/
+  app.js              application, scene, editor and UI orchestration
+  styles.css          responsive editor layout
+  icons.js            SVG icon system
+  highpoly.js         automatic dense-geometry pipeline
+  geometry.worker.js  background Loop subdivision
+  img2three.js        staged image reconstruction and review loop
+repack_and_sign.py     syncs the modular web app into the APK and signs it
+docs/
+  ARCHITECTURE.md
+THIRD_PARTY_NOTICES.md
+```
+
+## Running in a browser
+
+Serve the repository over HTTP so ES modules and module workers have a valid base URL.
+
+```bash
+python -m http.server 8080
+```
+
+Then open the local server in a modern browser with WebGL 2 support.
+
+## Android APK repack
+
+`repack_and_sign.py` now synchronizes `index.html` and the complete `src/` directory into `assets/www/` before repacking. The encrypted index remains compatible with the existing ENCF packaging flow, while the modular JS/CSS assets are inserted into the APK alongside it.
+
 ```bash
 python repack_and_sign.py
 ```
-O script executa automaticamente:
-1. Criptografia AES-256-CBC (`ENCF`) de `config.json` e `index.html`.
-2. Substituição dos assets no pacote APK.
-3. Alinhamento de bytes (Zipalign 4-byte).
-4. Assinatura completa com APK Signature Scheme V1, V2 e V3 via `uber-apk-signer`.
-5. Geração do arquivo pronto: `geradoAI-atualizado.apk`.
+
+The script verifies that the required modular assets exist inside the final APK before reporting success.
+
+## Gemini configuration
+
+The current application keeps compatibility with the existing Gemini configuration. A key stored in `localStorage` under `three_studio_gemini_key` takes precedence over the legacy bundled configuration.
+
+For production distribution, move API access behind a server-side proxy and rotate any key that has previously been committed to source control.
+
+## Design reference
+
+The staged reconstruction philosophy is inspired by `img2threejs`: analyze first, define structure and identity details, generate in passes, render, compare and correct. See `THIRD_PARTY_NOTICES.md` for attribution and licensing notes.
