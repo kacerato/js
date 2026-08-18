@@ -1,0 +1,167 @@
+/* Landscape/mobile density pass — loaded after styles.css */
+
+/* Dock tabs must never disappear off-screen. */
+.dock-tabs {
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+.dock-tabs::-webkit-scrollbar { display: none; }
+.dock-tab { flex: 0 0 auto; min-width: 68px; padding-inline: 8px; }
+.dock-spacer { min-width: 8px; }
+#collapseDockBtn { flex: 0 0 30px; position: sticky; right: 0; background: #0d0f14; box-shadow: -8px 0 12px #0d0f14; }
+
+/* Tab-aware dock heights. One fixed 250px dock was wasting landscape frames. */
+.app-shell[data-dock-tab="code"] { --dock-h: clamp(156px, 29dvh, 220px); }
+.app-shell[data-dock-tab="console"] { --dock-h: clamp(132px, 25dvh, 190px); }
+.app-shell[data-dock-tab="generation"] { --dock-h: clamp(154px, 29dvh, 210px); }
+.app-shell[data-dock-tab="reference"] { --dock-h: clamp(180px, 34dvh, 240px); }
+.app-shell[data-dock-tab="compare"] { --dock-h: clamp(176px, 33dvh, 235px); }
+.app-shell.dock-collapsed { --dock-h: 36px !important; }
+
+/* Native file input: the real control receives the touch. This is more reliable in Android WebView than input.click(). */
+.native-picker { position: relative; display: inline-grid; width: min(100%, 176px); }
+.native-picker .ui-btn { grid-area: 1 / 1; width: 100%; pointer-events: none; }
+.native-picker-input {
+  grid-area: 1 / 1;
+  width: 100%;
+  height: 100%;
+  min-height: 32px;
+  opacity: 0.001;
+  cursor: pointer;
+  z-index: 3;
+  font-size: 0;
+  color: transparent;
+}
+.reference-count { font: 8.5px var(--mono); color: #717c8c; min-height: 14px; }
+.reference-count.has-files { color: var(--ok); }
+
+/* Reference is a compact work strip rather than three oversized cards. */
+.reference-layout {
+  grid-template-columns: minmax(170px, 220px) minmax(120px, 1fr) minmax(190px, 250px);
+  gap: 6px;
+  padding: 6px;
+  overflow: hidden;
+}
+.reference-drop { padding: 7px; gap: 4px; }
+.reference-drop p { max-width: 180px; line-height: 1.3; }
+.reference-gallery {
+  min-width: 0;
+  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  gap: 5px;
+}
+.reference-controls { min-width: 0; gap: 5px; }
+.reference-controls label { gap: 3px; }
+.reference-controls textarea { min-height: 50px; padding: 6px 7px; line-height: 1.35; }
+.reference-controls .ui-btn.wide { min-height: 32px; }
+.reference-thumb button { width: 19px; height: 19px; }
+
+/* Generation is information-dense and readable. */
+.generation-layout { grid-template-columns: minmax(158px, 188px) minmax(0, 1fr); }
+.stage-list { padding: 4px; }
+.stage-row { min-height: 22px; padding: 2px 4px; gap: 5px; }
+.stage-row .stage-index { width: 15px; height: 15px; font-size: 6.5px; }
+.stage-row .stage-state { min-width: 38px; text-align: right; font-size: 7px; }
+.stage-row.waiting { color: #596373; }
+.stage-row.ready { color: var(--cyan); }
+.generation-log { padding: 6px 8px; font-size: 8.5px; line-height: 1.42; }
+
+/* Compare keeps all three regions visible on a short landscape screen. */
+.compare-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(170px, 215px); gap: 6px; padding: 6px; }
+.review-card { padding: 7px; }
+.review-score { padding-bottom: 5px; }
+.review-score strong { font-size: 17px; }
+.review-problems { margin-top: 5px; font-size: 8px; line-height: 1.35; }
+
+/* Short-height landscape is the actual mobile-horizontal case. */
+@media (orientation: landscape) and (max-height: 650px) {
+  :root { --top-h: 42px; --rail-w: 42px; --right-w: 236px; }
+
+  .app-shell[data-dock-tab="code"] { --dock-h: clamp(142px, 34dvh, 176px); }
+  .app-shell[data-dock-tab="console"] { --dock-h: clamp(116px, 27dvh, 146px); }
+  .app-shell[data-dock-tab="generation"] { --dock-h: clamp(146px, 35dvh, 180px); }
+  .app-shell[data-dock-tab="reference"] { --dock-h: clamp(160px, 39dvh, 196px); }
+  .app-shell[data-dock-tab="compare"] { --dock-h: clamp(158px, 38dvh, 192px); }
+
+  .topbar { padding-inline: 7px; gap: 6px; }
+  .brand-block { min-width: 118px; gap: 6px; }
+  .brand-mark { width: 23px; height: 23px; }
+  .brand-title { font-size: 9.5px; letter-spacing: .09em; }
+  .brand-sub { display: none; }
+  .top-actions { gap: 4px; }
+  .top-actions .ui-btn { min-height: 29px; padding-inline: 7px; font-size: 9px; }
+  .perf-strip { height: 29px; }
+  .perf-strip > div { min-width: 40px; padding: 3px 5px; }
+  .perf-label { font-size: 6.5px; }
+  .perf-strip strong { font-size: 9px; }
+
+  .tool-rail { padding: 5px 3px; gap: 3px; }
+  .rail-btn { width: 34px; height: 34px; }
+  .viewport-head { top: 6px; left: 7px; right: 7px; }
+  .viewport-mode, .auto-hp-pill { height: 23px; padding-inline: 7px; font-size: 8px; }
+  .viewport-foot { display: none; }
+
+  .right-panel { grid-template-rows: minmax(88px, 29%) minmax(0, 71%); }
+  .section-head { min-height: 37px; padding: 5px 7px; }
+  .section-kicker { font-size: 6.5px; }
+  .section-head h2 { margin-top: 2px; font-size: 10px; }
+  .scene-tree { padding: 4px; }
+  .tree-item { min-height: 23px; padding-block: 2px; font-size: 8.5px; }
+  .inspector-scroll { padding: 5px; gap: 5px; }
+  .property-card { padding: 6px; border-radius: 6px; }
+  .property-title, .property-title-row { font-size: 9px; }
+  .vector-grid { margin-top: 4px; gap: 3px; }
+  .vector-grid input { margin-top: 2px; padding: 3px; font-size: 8px; }
+  .metric-grid { margin-top: 4px; gap: 3px; }
+  .metric-grid > div { padding: 4px; }
+  .metric-grid span { font-size: 6.5px; }
+  .metric-grid strong { margin-top: 2px; font-size: 8px; }
+  .hp-info-box { display: none; }
+  .control-row { min-height: 24px; grid-template-columns: 67px minmax(0, 1fr) 29px; gap: 4px; font-size: 7.5px; }
+  .control-row select { padding: 2px 3px; font-size: 7.5px; }
+
+  .dock-tabs { height: 30px; flex-basis: 30px; padding-inline: 4px; }
+  .dock-tab { height: 29px; min-width: 64px; padding-inline: 6px; font-size: 7.5px; }
+  .code-toolbar { height: 31px; padding: 3px 5px; }
+  #codeInput { height: calc(100% - 31px); padding: 6px 9px; font-size: 9px; line-height: 1.42; }
+  .code-toolbar .ui-btn { min-height: 25px; padding-inline: 6px; font-size: 8px; }
+  .code-hint { font-size: 7.5px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+  .reference-layout { grid-template-columns: 174px minmax(100px, 1fr) 208px; gap: 4px; padding: 4px; }
+  .reference-drop { border-radius: 6px; padding: 5px; gap: 3px; }
+  .reference-drop .large-icon, .reference-drop .large-icon svg { width: 23px; height: 23px; }
+  .reference-drop strong { font-size: 8.5px; }
+  .reference-drop p { margin: 0; font-size: 7.3px; line-height: 1.25; }
+  .native-picker { width: 150px; }
+  .native-picker .ui-btn { min-height: 27px; font-size: 8px; }
+  .reference-gallery { grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); gap: 3px; }
+  .reference-controls { gap: 3px; }
+  .reference-controls label { font-size: 7.5px; }
+  .reference-controls textarea { min-height: 42px; max-height: 62px; padding: 4px 5px; font-size: 8px; }
+  .reference-controls .ui-btn.wide { min-height: 28px; font-size: 8px; }
+  .reference-count { font-size: 7px; }
+
+  .generation-layout { grid-template-columns: 156px minmax(0, 1fr); }
+  .stage-row { min-height: 19px; font-size: 7.3px; }
+  .stage-row .stage-index { width: 13px; height: 13px; }
+  .generation-log { font-size: 7.5px; }
+
+  .compare-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 176px; gap: 4px; padding: 4px; }
+  .compare-grid figcaption { font-size: 6.5px; }
+  .review-card { padding: 5px; }
+  .review-score strong { font-size: 14px; }
+  .review-problems { font-size: 7px; }
+}
+
+/* Very small landscape phones: trade the right inspector for usable viewport/editor space. */
+@media (orientation: landscape) and (max-height: 480px) and (max-width: 850px) {
+  :root { --right-w: 0px; }
+  .right-panel { display: none; }
+  .workspace { grid-template-columns: var(--rail-w) minmax(0, 1fr); }
+  .perf-strip { display: none; }
+  .brand-block { min-width: 104px; }
+  .top-actions { margin-left: auto; }
+  .reference-layout { grid-template-columns: 156px minmax(90px, 1fr) 190px; }
+}
