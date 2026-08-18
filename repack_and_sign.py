@@ -146,6 +146,7 @@ def main():
             "assets/www/src/geometry.worker.js",
             "assets/www/src/styles.css",
             "assets/www/src/layout-fixes.css",
+            "assets/www/src/workspace-grid.css",
             "assets/www/src/runtime-fixes.js",
             "assets/www/src/tab-layout-sync.js",
         }

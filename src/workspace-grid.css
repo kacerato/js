@@ -1,0 +1,193 @@
+/*
+ * Workspace geometry is owned here.
+ * No panel uses position:fixed in short landscape; every region occupies a real grid cell.
+ * This guarantees viewport and dock rectangles cannot overlap.
+ */
+
+.app-shell,
+.workspace,
+.viewport-panel,
+.right-panel,
+.bottom-dock,
+.dock-body,
+.dock-pane {
+  min-width: 0;
+  min-height: 0;
+}
+
+@media (orientation: landscape) and (max-height: 650px) {
+  :root {
+    --code-side-w: clamp(340px, 46vw, 610px);
+  }
+
+  /* Default landscape frame: header / workspace / contextual dock. */
+  .app-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: var(--top-h) minmax(0, 1fr) var(--dock-h);
+    overflow: hidden;
+  }
+
+  .topbar {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    min-width: 0;
+  }
+
+  .workspace {
+    grid-column: 1;
+    grid-row: 2;
+    margin: 0 !important;
+    width: auto !important;
+    height: auto !important;
+    overflow: hidden;
+  }
+
+  .bottom-dock {
+    grid-column: 1;
+    grid-row: 3;
+    position: static !important;
+    inset: auto !important;
+    top: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    left: auto !important;
+    width: auto !important;
+    height: auto !important;
+    max-width: none !important;
+    max-height: none !important;
+    overflow: hidden;
+    z-index: 12;
+    border-left: 0;
+    box-shadow: none;
+  }
+
+  .dock-body {
+    flex: 1 1 auto;
+    overflow: hidden;
+  }
+
+  .dock-pane.active {
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* CODE is the only side workspace because editing benefits from vertical space. */
+  .app-shell[data-dock-tab="code"]:not(.dock-collapsed) {
+    --dock-h: 0px !important;
+    grid-template-columns: minmax(0, 1fr) var(--code-side-w);
+    grid-template-rows: var(--top-h) minmax(0, 1fr);
+  }
+
+  .app-shell[data-dock-tab="code"]:not(.dock-collapsed) .workspace {
+    grid-column: 1;
+    grid-row: 2;
+    grid-template-columns: var(--rail-w) minmax(0, 1fr);
+    margin: 0 !important;
+  }
+
+  .app-shell[data-dock-tab="code"]:not(.dock-collapsed) .right-panel {
+    display: none !important;
+  }
+
+  .app-shell[data-dock-tab="code"]:not(.dock-collapsed) .bottom-dock {
+    grid-column: 2;
+    grid-row: 2;
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    border-top: 0;
+    border-left: 1px solid var(--edge);
+    box-shadow: -10px 0 24px rgba(0, 0, 0, .18);
+  }
+
+  .app-shell[data-dock-tab="code"]:not(.dock-collapsed) .dock-tabs {
+    flex: 0 0 30px;
+    height: 30px;
+  }
+
+  .app-shell[data-dock-tab="code"]:not(.dock-collapsed) .dock-pane[data-pane="code"].active {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .app-shell[data-dock-tab="code"]:not(.dock-collapsed) .code-toolbar {
+    flex: 0 0 31px;
+    min-height: 31px;
+  }
+
+  .app-shell[data-dock-tab="code"]:not(.dock-collapsed) #codeInput {
+    flex: 1 1 auto;
+    width: 100%;
+    height: auto !important;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  /* Every non-code tab is a true bottom grid row, never an overlay. */
+  .app-shell[data-dock-tab="console"] .bottom-dock,
+  .app-shell[data-dock-tab="generation"] .bottom-dock,
+  .app-shell[data-dock-tab="reference"] .bottom-dock,
+  .app-shell[data-dock-tab="compare"] .bottom-dock {
+    grid-column: 1;
+    grid-row: 3;
+    position: static !important;
+  }
+
+  /* Collapsing always returns to a conventional three-row frame. */
+  .app-shell.dock-collapsed {
+    --dock-h: 36px !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: var(--top-h) minmax(0, 1fr) 36px !important;
+  }
+
+  .app-shell.dock-collapsed .workspace {
+    grid-column: 1 !important;
+    grid-row: 2 !important;
+    margin: 0 !important;
+  }
+
+  .app-shell.dock-collapsed .bottom-dock {
+    grid-column: 1 !important;
+    grid-row: 3 !important;
+    position: static !important;
+    border-left: 0 !important;
+    border-top: 1px solid var(--edge) !important;
+    box-shadow: none !important;
+  }
+
+  /* Guard against stale inline/canvas dimensions after a frame switch. */
+  .viewport-panel {
+    overflow: hidden !important;
+  }
+
+  .viewport-panel > canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100%;
+    max-height: 100%;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  :root {
+    --code-side-w: clamp(330px, 48vw, 560px);
+  }
+
+  .app-shell[data-dock-tab="code"]:not(.dock-collapsed) .code-hint {
+    display: none;
+  }
+
+  .app-shell[data-dock-tab="code"]:not(.dock-collapsed) .code-toolbar .ui-btn span {
+    display: none;
+  }
+
+  .app-shell[data-dock-tab="code"]:not(.dock-collapsed) .code-toolbar .ui-btn {
+    width: 29px;
+    padding-inline: 0;
+  }
+}
